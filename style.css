@@ -1,0 +1,516 @@
+/* =========================================
+   1. PALETA DE CORES DINÂMICA
+========================================= */
+:root {
+    --bg-fundo: #f4f6f8;      /* Um cinza beeem mais claro e elegante que o #ececec */
+    --bg-caixas: #ffffff;     
+    --texto-prin: #1a1a1a;    /* Preto mais suave, menos agressivo aos olhos */
+    --texto-sec: #637381;     
+    --borda: #dfe4ea;         
+    --bg-destaque: #f1f8e9;   
+    --bg-alerta: #fff5f5;     
+    --primary: #4CAF50; 
+    --secondary: #F57C00; 
+    --danger: #E53935;        /* Um vermelho mais moderno */
+    --dark: #212B36; 
+}
+
+body.dark-mode {
+    --bg-fundo: #161c24;      /* Fundo dark de app moderno (não é preto puro) */
+    --bg-caixas: #212b36;     /* Caixas com contraste leve do fundo */
+    --texto-prin: #f9fafb;    
+    --texto-sec: #919eab;     
+    --borda: #333333;         
+    --bg-destaque: #1a2a1a;   
+    --bg-alerta: #3a1515;     
+}
+
+* { box-sizing: border-box; }
+
+body { 
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+    background: var(--bg-fundo); 
+    color: var(--texto-prin);
+    margin: 0; 
+    padding: 0; 
+    overflow-x: hidden; 
+    transition: background-color 0.3s, color 0.3s; 
+}
+
+/* =========================================
+   2. LAYOUT PRINCIPAL (AS 3 COLUNAS)
+========================================= */
+.main-layout { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 15px; 
+    width: 100%; /* Resolve o vazamento lateral */
+    max-width: 1500px; /* Impede a tela de esticar ao infinito em monitores ultra-wide */
+    margin: 0 auto; 
+    padding: 15px 25px; /* Empurra a coluna da direita pra esquerda criando o respiro */
+    min-height: 100vh;
+}
+
+@media (min-width: 1080px) {
+  .main-layout { 
+    display: grid; 
+    /* Reduzi um pouco a largura das colunas laterais para deixar mais elegante */
+    grid-template-columns: 360px 1fr 370px; 
+    gap: 25px; 
+    align-items: start; 
+  }
+.left-column, .middle-column, .right-column { 
+    position: sticky;
+    top: 15px; 
+    max-height: 96vh; 
+    overflow-y: auto; 
+    padding-right: 5px; /* Evita que o texto encoste na barra de rolagem */
+  }
+.left-column::-webkit-scrollbar, .middle-column::-webkit-scrollbar, .right-column::-webkit-scrollbar { 
+      width: 6px; 
+  }
+  .left-column::-webkit-scrollbar-track, .middle-column::-webkit-scrollbar-track, .right-column::-webkit-scrollbar-track { 
+      background: transparent; 
+  }
+  .left-column::-webkit-scrollbar-thumb, .middle-column::-webkit-scrollbar-thumb, .right-column::-webkit-scrollbar-thumb { 
+      background: var(--borda); 
+      border-radius: 10px; 
+  }
+}
+
+/* =========================================
+   3. CAIXAS, TEXTOS E FONTES
+========================================= */
+.card, .table-container { 
+    background: var(--bg-caixas); 
+    color: var(--texto-prin);
+    padding: 20px; 
+    border-radius: 15px; 
+    margin-bottom: 15px; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
+    text-align: center; 
+    transition: 0.3s;
+}
+
+h1, h3 { margin: 0 0 15px 0; color: var(--texto-prin); }
+
+/* CORREÇÃO DO DARK MODE: Usa texto-prin em vez de preto fixo */
+.big { font-size: clamp(3rem, 10vw, 5.5rem); font-weight: 900; margin: 5px 0; line-height: 1; color: var(--texto-prin); }
+.giant-zone { font-size: clamp(6rem, 15vw, 10rem); font-weight: 900; color: var(--danger); line-height: 0.9; margin: 10px 0; }
+.label-small { font-size: 1rem; color: var(--texto-sec); text-transform: uppercase; font-weight: bold; letter-spacing: 1px; }
+
+select { width: 100%; padding: 12px; margin: 5px 0; font-size: 1.1rem; border-radius: 10px; border: 2px solid var(--borda); background: var(--bg-caixas); color: var(--texto-prin); }
+
+/* =========================================
+   4. BOTÕES E EXPORTAÇÃO (FLEXBOX SEGURO)
+========================================= */
+.export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+.export-grid .btn { width: 100%; margin: 0; padding: 15px; font-size: 1rem; }
+
+.row-50-50 { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
+.row-50-50 .btn { flex: 1; width: 100%; margin: 0; }
+
+.btn { 
+    font-family: inherit; /* Puxa a mesma fonte moderna do body */
+    font-size: 1.1rem; 
+    padding: 18px; 
+    cursor: pointer; 
+    border: none; 
+    border-radius: 12px; 
+    font-weight: 800; 
+    color: white; 
+    transition: all 0.2s ease; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+}
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    filter: brightness(1.1);
+}
+
+.btn:active { 
+    transform: scale(0.96) translateY(0); 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.btn-grid { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
+.btn-start { background: var(--primary); width: 100%; font-size: 1.5rem; margin-top: 10px; }
+.btn-stop { background: var(--secondary); flex: 1; }
+.btn-reset { background: var(--danger); flex: 1; }
+
+/* =========================================
+   5. TABELA DE DISPAROS
+========================================= */
+.table-container { overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 1.1rem; }
+th { background: var(--bg-fundo); padding: 15px; font-size: 1.4rem; color: var(--texto-prin); }
+td { padding: 12px; border-bottom: 1px solid var(--borda); font-size: 1.6rem; font-weight: bold; color: var(--texto-prin); }
+
+/* =========================================
+   6. GRÁFICOS (TRAVAMENTO DE TAMANHO)
+========================================= */
+#hfChartArea { 
+  background: var(--bg-caixas); 
+  border-radius: 15px;
+  padding: 15px; 
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  display: none;
+  width: 100%;
+  height: 400px; /* ISSO IMPEDE O GRÁFICO DE CRESCER AO INFINITO E QUEBRAR A TELA */
+  box-sizing: border-box; 
+  margin-top: 15px;
+}
+.chart-container { 
+    display: none; 
+    justify-content: space-around; 
+    align-items: flex-end; 
+    height: 300px; /* Reduzi um pouco a altura para caber melhor na tela */
+    padding-top: 20px; 
+    width: 100%;
+}
+canvas#hfChart { width: 100% !important; height: 100% !important; }
+
+/* Gráfico de Barras */
+.bar-wrapper { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    flex: 1; 
+    height: 100%; 
+    justify-content: flex-end; 
+    min-width: 0; /* Impede a barra de forçar a largura */
+}
+.bar { 
+    width: 60%; /* Deixei as barras um pouco mais finas */
+    max-width: 50px; 
+    transition: height 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67); 
+    border-radius: 6px 6px 0 0; 
+    position: relative; 
+}
+.bar-val { 
+    font-weight: bold; 
+    margin-bottom: 5px; 
+    font-size: 1.1rem; 
+    color: var(--texto-prin); 
+}
+.chart-container .label-small {
+    font-size: 0.75rem; 
+    margin-top: 8px;
+    text-align: center;
+    word-break: break-all; /* Força a quebra se a palavra for muito grande */
+}
+@media (max-width: 600px) {
+    .chart-container .label-small { font-size: 0.7rem; }
+    #chartView .label-small {
+        white-space: pre-line; /* Permite quebras de linha manuais se precisar */
+    }
+}
+.bar-A { background: var(--primary); }
+.bar-C { background: #2196F3; }
+.bar-D { background: #FFEB3B; }
+.bar-M { background: var(--danger); }
+.bar-X { background: #9E9E9E; }
+.bar-E { background: #FF4500; }
+
+/* =========================================
+   7. CHAVES E TOGGLES
+========================================= */
+/* =========================================
+   ALINHAMENTO SEGURO DOS TOGGLES (MOBILE)
+========================================= */
+.toggle-group { 
+    display: grid !important;
+    /* Tenta colocar os 4 em linha. Se a tela for muito fina (celular pequeno), vira um 2x2 perfeito */
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); 
+    gap: 15px;               
+    margin-top: 15px; 
+    width: 100%;
+    justify-items: center; /* Centraliza o botão dentro do próprio quadrado */
+}
+.toggle { appearance: none; width: 60px; height: 30px; background: #ccc; border-radius: 30px; position: relative; cursor: pointer; }
+.toggle:checked { background: var(--primary); }
+.toggle::before { content: ""; position: absolute; width: 24px; height: 24px; background: #fff; border-radius: 50%; top: 3px; left: 3px; transition: .3s; }
+.toggle:checked::before { left: 33px; }
+
+/* Cores das Zonas na Tabela */
+.color-A { color: var(--primary) !important; } 
+.color-C { color: #2196F3 !important; }       
+.color-D { color: #FFEB3B !important; }    
+.color-M { color: var(--danger) !important; font-weight: 900; }
+.color-M-metal { color: #9E9E9E !important; font-weight: 900; }
+/* =========================================
+   8. IMPRESSÃO PDF
+========================================= */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: white !important; color: black !important; }
+  .btn, select, .toggle-group, .export-grid, h1, hr, .label-small { display: none !important; }
+  .left-column { display: block !important; width: 100% !important; position: static !important; box-shadow: none !important; background: none !important; }
+  #score, #hf { display: block !important; border: none !important; text-align: left !important; margin-bottom: 10px !important; color: black !important; }
+  #score::before { content: "PONTOS TOTAIS: "; font-size: 16px; color: #666; }
+  #hf::before { content: "HIT FACTOR: "; font-size: 16px; color: #666; }
+  #lastZone, .giant-zone { display: none !important; }
+  .main-layout { display: block !important; }
+  .middle-column, .right-column { width: 100% !important; display: block !important; page-break-inside: avoid; }
+  .card { border: 1px solid #ddd !important; box-shadow: none !important; margin-bottom: 20px !important; background: white !important; }
+}
+/* =========================================
+   BLINDAGEM: INPUTS E SELECTS DINÂMICOS
+========================================= */
+input[type="text"], input[type="number"], select { 
+    width: 100% !important; 
+    padding: 12px !important; 
+    margin-bottom: 10px !important; 
+    font-size: 1.1rem !important; 
+    font-weight: bold;
+    border-radius: 6px !important; 
+    
+    /* A MÁGICA AQUI: Usa as variáveis dinâmicas do seu tema! */
+    border: 1px solid var(--borda) !important; 
+    background-color: var(--bg-caixas) !important; 
+    color: var(--texto-prin) !important; 
+    
+    transition: 0.3s;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+}
+
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
+    outline: none !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.2), inset 0 2px 5px rgba(0,0,0,0.05) !important;
+}
+
+/* Remove as setinhas feias de dentro do input de número */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Deixa a borda verde (ou a cor primária) quando você clica para digitar */
+input[type="text"]:focus, select:focus {
+    outline: none !important;
+    border-color: var(--primary) !important;
+}
+
+/* Arruma a cor do placeholder ("Digite seu nome...") no modo Dark */
+input[type="text"]::placeholder {
+    color: var(--texto-sec) !important;
+    opacity: 0.8;
+}
+/* CAIXA DO 360 AI ANALYST */
+.ai-card {
+    background-color: #e3f2fd !important; 
+    border-left: 5px solid #1976D2 !important;
+}
+/* =========================================
+   BLINDAGEM DO CRONÔMETRO (NÃO VAZAR A TELA)
+========================================= */
+#time { 
+    font-size: clamp(2.5rem, 12vw, 5.5rem) !important; 
+    font-weight: 900 !important;
+    text-align: center !important;
+    white-space: nowrap !important; /* A mágica que impede de quebrar a linha */
+    width: 100% !important;
+    margin: 0 auto !important;
+    letter-spacing: -2px !important; 
+}
+body.dark-mode .ai-card {
+    background-color: #1a2430 !important; 
+    border-left: 5px solid #4da3ff !important;
+}
+/* =========================================
+   ORDENAÇÃO EXCLUSIVA PARA TELEMÓVEL (MOBILE)
+========================================= */
+@media (max-width: 1079px) {
+    /* Derruba as colunas para o telemóvel as poder reordenar */
+    .left-column, .middle-column, .right-column {
+        display: contents !important;
+    }
+
+    .main-layout {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* A NOVA ORDEM DE VISUALIZAÇÃO NO TELEMÓVEL */
+    #card-timer        { order: 1 !important; }
+    #card-botoes       { order: 2 !important; }
+    #card-matriz       { order: 3 !important; } /* Matriz primeiro */
+    #wrap-radar-gauge  { order: 4 !important; } /* Radar e Gauge lado a lado (ou um em cima do outro no mobile) */
+    #chartView         { order: 5 !important; } /* Barras */
+    #hfChartArea       { order: 6 !important; } /* Linha */
+    #card-ia           { order: 7 !important; }
+    #card-tabela       { order: 8 !important; }
+    #card-config-modo  { order: 9 !important; }
+    #card-config-alvos { order: 10 !important; }
+    #card-export       { order: 11 !important;}
+} 
+/* =========================================
+   MODAIS PREMIUM (POP-UPS)
+========================================= */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.75); 
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10000; backdrop-filter: blur(5px);
+    animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+    background: var(--bg-caixas); 
+    border: 1px solid var(--borda);
+    padding: 30px; 
+    border-radius: 20px; /* Arredondamento premium */
+    width: 90%; 
+    max-width: 400px;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); /* Sombra profunda */
+    position: relative; 
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+    text-align: center;
+}
+
+.modal-content h3 {
+    font-size: 1.3rem; font-weight: 900; letter-spacing: 1px; margin-bottom: 25px;
+    color: var(--primary);
+}
+.close-modal:hover { color: var(--danger); transform: scale(1.1); }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--borda);
+    color: var(--texto-sec);
+    border-radius: 50%;
+    font-size: 0.85rem;
+    font-weight: 900;
+    font-family: monospace;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    margin-left: 8px; /* Dá um espacinho do texto */
+}
+
+.info-icon:hover {
+    background-color: var(--primary);
+    color: #111;
+    border-color: var(--primary);
+    transform: scale(1.15);
+}
+/* Botão que substitui o Select (Adeus Preto Feio!) */
+.btn-select-modern {
+    width: 100%; padding: 12px 15px;
+    background: var(--bg-fundo); /* Fica claro de dia e escuro de noite */
+    color: var(--texto-prin);
+    border: 1px solid var(--borda);
+    border-radius: 6px; font-size: 0.95rem; font-weight: bold;
+    cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); margin-top: 5px; transition: 0.3s;
+}
+.btn-select-modern:hover { border-color: var(--primary); }
+
+/* Opções dentro do Modal */
+.btn-modal-option {
+    background: var(--bg-fundo); 
+    border: 2px solid transparent; 
+    color: var(--texto-prin); 
+    padding: 16px; 
+    border-radius: 12px;
+    font-weight: 800; cursor: pointer; text-transform: uppercase; 
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 10px;
+}
+.btn-modal-option:hover { 
+    background: var(--bg-destaque); 
+    border-color: var(--primary); 
+    color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+
+.btn-cancel {
+    margin-top: 15px; background: transparent; border: none; 
+    color: var(--texto-sec); font-weight: bold; text-transform: uppercase;
+    letter-spacing: 1px; cursor: pointer; font-size: 0.85rem; width: 100%;
+    transition: 0.2s; padding: 10px;
+}
+.bt
+
+/* =========================================
+   MATRIZ TÁTICA IPSC (CLONE DO HARDWARE)
+========================================= */
+/* Trava de segurança: Máximo de 5 alvos por fileira (aprox. 750px) */
+.alvos-grid-ipsc { 
+    display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; 
+    padding: 10px; max-width: 750px; margin: 0 auto; 
+}
+.ipsc-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ipsc-label { font-weight: 900; color: var(--texto-sec); font-size: 0.85rem; }
+
+/* A Caixa Preta 3D */
+.ipsc-tactical-box {
+    position: relative; 
+    width: 130px; height: 160px; 
+    background: #111; 
+    border-radius: 4px; 
+    display: flex; justify-content: center; align-items: center; /* Centraliza o alvo na caixa */
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3), inset 0 0 10px rgba(255,255,255,0.05);
+}
+/* =========================================
+   O ALVO VETORIAL (SVG) - Precisão Mil-Spec
+========================================= */
+.ipsc-svg-target {
+    width: 110px; 
+    height: 130px; 
+    display: block;
+    z-index: 5;
+}
+
+/* Propriedades das linhas sólidas concêntricas */
+.svg-zone-d, .svg-zone-c, .svg-zone-a {
+    fill: #f4f4f4;        /* Cor da face (Branco Gelo) */
+    stroke: #222222;      /* Cor da linha (Sólida e Escura) */
+    stroke-width: 1.5;    /* Espessura exata da impressão */
+    stroke-linejoin: round; /* Quinas perfeitas e conectadas */
+    transition: fill 0.1s ease-out; /* Suavidade no tiro */
+}
+
+/* =========================================
+   ANIMAÇÕES DE IMPACTO (FLASHES NATIVOS SVG)
+========================================= */
+/* O "Fill" injeta a cor diretamente na geometria calculada */
+.flash-alpha   { fill: #4CAF50 !important; } /* Verde no Alfa */
+.flash-charlie { fill: #2196F3 !important; } /* Azul no Charlie */
+.flash-delta   { fill: #FFC107 !important; } /* Amarelo no Delta */
+
+/* No MISS, forçamos todas as camadas a ficarem vermelhas */
+.flash-miss .svg-zone-d, 
+.flash-miss .svg-zone-c, 
+.flash-miss .svg-zone-a { 
+    fill: #E53935 !important; 
+}
+/* =========================================
+   ALVOS METÁLICOS VETORIAIS (SVG)
+========================================= */
+/* Face padrão (Branco Gelo) */
+.svg-zone-m, .svg-zone-p { 
+    fill: #f4f4f4; stroke: #ccc; stroke-width: 2; 
+    transition: fill 0.1s ease-out; 
+}
+
+/* FLASHES DE IMPACTO NO METAL */
+/* Cinza Iluminado para o Prato */
+.flash-metal { fill: #9E9E9E !important; stroke: #777 !important; } 
+
+/* Cinza Incandescente para o Popper (corpo inteiro) */
+.flash-popper .svg-zone-p { fill: #757575 !important; stroke: #555 !important; } 
+
+/* No MISS, o corpo inteiro fica Vermelho */
+.flash-miss .svg-zone-m, .flash-miss .svg-zone-p { fill: #E53935 !important; }

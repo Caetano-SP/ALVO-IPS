@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>IPS Metrix</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <link rel="stylesheet" type="text/css" href="/style.css">
+  <script src="/chart.js"></script>
+  <script src="/tf.min.js" defer></script> 
+  <script src="/script.js" defer></script>
+  <script src="/jspdf.js" defer></script>
+</head>
+<body>
+
+<div class="main-layout"> 
+  <div class="left-column">
+      
+      <div class="card" id="card-timer">
+        <h1>IPS Metrix</h1>
+        <div class="big" id="chrono">0:00.00</div>
+        <hr style="opacity:0.2; margin:15px 0;">
+        <span class="label-small">Hit Factor <span class="info-icon" onclick="abrirModalInfo('hf')">?</span></span>
+<div class="big" id="hf" style="color: var(--primary);">0.00</div>
+        <span class="label-small" style="margin-top:20px;">Pontos <span class="info-icon" onclick="abrirModalInfo('zonas')">?</span></span>
+        <div class="big" id="score">0</div>
+        <span class="label-small" style="margin-top:20px;">Última Zona</span>
+        <div class="giant-zone" id="lastZone">-</div>
+      </div>
+
+      <div class="card" id="card-botoes">
+        <div class="btn-grid">
+          <button class="btn btn-start" onclick="prepareStart()">START</button>
+          <button class="btn btn-stop" onclick="doStop()">STOP</button>
+          <button class="btn btn-reset" onclick="doReset()">RESET</button>
+        </div>
+      </div>
+
+      <div class="card" id="card-config-modo">
+        <h3>Configurações</h3>
+        
+        <label style="color:var(--primary); font-size:0.7rem; font-weight:900; text-transform:uppercase;">Modo de Pontuação</label>
+        <input type="hidden" id="scoreModeSel" value="best2">
+        <button class="btn-select-modern" onclick="abrirModal('modal-score-mode')">
+            <span id="label-scoreMode">REGRAS IPSC</span> <span>▼</span>
+        </button>
+        
+        <label style="color:var(--primary); font-size:0.7rem; font-weight:900; text-transform:uppercase; margin-top:10px; display:block;">Limite de Disparos</label>
+        <input type="hidden" id="maxShotsSel" value="999">
+        <button class="btn-select-modern" onclick="abrirModal('modal-max-shots')">
+            <span id="label-maxShots">Irrestrito</span> <span>▼</span>
+        </button>
+
+        <label style="color:var(--primary); font-size:0.7rem; font-weight:900; text-transform:uppercase; margin-top:10px; display:block;">Modo de Execução</label>
+        <input type="hidden" id="autoModeSel" value="0">
+        <button class="btn-select-modern" onclick="abrirModal('modal-auto-mode')">
+            <span id="label-autoMode">Manual (Uma vez)</span> <span>▼</span>
+        </button>
+      </div>
+
+      <div class="card" id="card-config-alvos">
+        <label style="color:var(--primary); font-size:0.7rem; font-weight:900; text-transform:uppercase;">Tipo de Laser</label>
+        <input type="hidden" id="laserType" value="7">
+        <button class="btn-select-modern" onclick="abrirModal('modal-laser-type')">
+            <span id="label-laserType">Laser Vermelho</span> <span>▼</span>
+        </button>
+        
+        <label style="color:var(--primary); font-size:0.7rem; font-weight:900; text-transform:uppercase; margin-top:10px; display:block;">Selecionar Alvo</label>
+        <input type="hidden" id="targetSel" value="255">
+        <button class="btn-select-modern" onclick="abrirModal('modal-target-sel')">
+            <span id="label-targetSel">Todos os Alvos</span> <span>▼</span>
+        </button>
+        
+        <button class="btn" style="background:#2E2B2B; width: 100%; margin: 10px 0 5px 0;" onclick="abrirModalCalibracao()">🎯 CALIBRAR</button>
+        <div class="row-50-50">
+            <button class="btn" style="background:#607D8B;" onclick="doMetalico()">METALICO</button>
+            <button class="btn" style="background:#FFA000;" onclick="doIPSC()">IPSC</button>
+        </div>      
+        <div class="toggle-group">
+            <div style="text-align:center; display:flex; flex-direction:column; align-items:center;">
+                <input type="checkbox" id="chkSom" class="toggle" onchange="toggleSom(this.checked)" checked>
+                <label style="font-size:0.8rem; font-weight:bold; margin-top:5px; color: var(--texto-prin);">SOM</label>
+            </div>
+            <div style="text-align:center; display:flex; flex-direction:column; align-items:center;">
+                <input type="checkbox" id="chkLuz" class="toggle" onchange="toggleLuz(this.checked)" checked>
+                <label style="font-size:0.8rem; font-weight:bold; margin-top:5px; color: var(--texto-prin);">LUZ</label>
+            </div>
+            <div style="text-align:center; display:flex; flex-direction:column; align-items:center;">
+                <input type="checkbox" id="voiceToggle" class="toggle" checked onchange="saveSettings()">
+                <label style="font-size:0.8rem; font-weight:bold; margin-top:5px; color: var(--texto-prin);">VOZ IA</label>
+            </div>
+            <div style="text-align:center; display:flex; flex-direction:column; align-items:center;">
+                <input type="checkbox" id="darkModeToggle" class="toggle" onchange="toggleDarkMode()">
+                <label style="font-size:0.8rem; font-weight:bold; margin-top:5px; color: var(--texto-prin);">DARK</label>
+            </div>
+        </div>
+      </div>
+
+      <div class="card" id="card-export">
+        <div class="form-group">
+            <label for="athleteName">Nome do Atleta</label>
+            <input type="text" id="athleteName" placeholder="Digite seu nome..." 
+                   style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #ccc;"
+                   oninput="saveSettings()">
+        </div>
+        <div class="export-grid">
+            <button class="btn" style="background:#E53935;" onclick="gerarPDF()">GERAR PDF</button>
+            <button class="btn" style="background:#2E7D32;" onclick="saveRoundToCSV()">BAIXAR EXCEL</button>
+            <button class="btn" style="background:#D32F2F; grid-column: span 2; font-size: 1.5rem;" onclick="if(confirm('Apagar toda a planilha da placa?')) window.location.href='/limpar_csv'">LIMPAR DADOS</button>
+        </div>
+      </div>
+    
+  </div> 
+
+ <div class="middle-column">
+    
+    <div id="card-matriz" class="card">
+      <h3 style="margin-bottom:10px; color: var(--texto-prin);">🎯 Matriz Tática IPSC</h3>
+      <div id="matriz-alvos-ipsc" class="alvos-grid-ipsc">
+          </div>
+    </div>
+
+    <div id="wrap-radar-gauge" style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+        
+        <div id="radarChartArea" class="card" style="flex: 1; min-width: 250px; height: 320px; margin-bottom: 0;">
+          <h3 style="margin-bottom:5px; color: var(--texto-prin);">Atual vs Anterior <span class="info-icon" onclick="abrirModalInfo('radar')">?</span></h3>
+          <canvas id="radarChart"></canvas>
+        </div>
+
+        <div class="card" style="flex: 1; min-width: 250px; padding: 15px; display: flex; flex-direction: column; text-align: center; margin-bottom: 0;">
+          <h3 style="margin-bottom:5px; color: var(--texto-prin);">Pressão Hit Factor</h3>
+          <div style="position: relative; width: 100%; height: 220px; display: block; margin-top: auto; margin-bottom: auto;">
+              <canvas id="gaugeChartIPSC"></canvas>
+          </div>
+        </div>
+
+    </div>
+
+    <div id="chartView" class="card chart-container" style="display: flex;">
+      <div class="bar-wrapper"><div id="vA" class="bar-val">0</div><div id="bA" class="bar bar-A"></div><div class="label-small" style="margin-top:10px">A</div></div>
+      <div class="bar-wrapper"><div id="vC" class="bar-val">0</div><div id="bC" class="bar bar-C"></div><div class="label-small" style="margin-top:10px">C</div></div>
+      <div class="bar-wrapper"><div id="vD" class="bar-val">0</div><div id="bD" class="bar bar-D"></div><div class="label-small" style="margin-top:10px">D</div></div>
+      <div class="bar-wrapper" id="wrap-X"><div id="vX" class="bar-val">0</div><div id="bX" class="bar bar-X"></div><div class="label-small" style="margin-top:10px">MET</div></div>
+      <div class="bar-wrapper" id="wrap-M"><div id="vM" class="bar-val">0</div><div id="bM" class="bar bar-M"></div><div class="label-small" style="margin-top:10px">MISS</div></div>
+      <div class="bar-wrapper" id="wrap-E"><div id="vE" class="bar-val">0</div><div id="bE" class="bar bar-E"></div><div class="label-small" style="margin-top:10px">EXT</div></div>
+    </div>
+
+    <div id="hfChartArea" class="card" style="display: block;">
+      <h3 style="margin-bottom:10px; color: var(--texto-prin);">Evolução do Hit Factor <span class="info-icon" onclick="abrirModalInfo('evolucao')">?</span></h3>
+      <canvas id="hfChart"></canvas>
+    </div>
+
+  </div>
+
+  <div class="right-column">
+    <div class="card ai-card" id="card-ia" style="margin-top: 15px;">
+        <h3 style="color: #1976D2; margin-top: 0; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+  <span>🧠 360 AI Analyst</span> 
+  <span class="info-icon" onclick="abrirModalInfo('ia')">?</span>
+</h3>
+        <p id="aiFeedback" style="font-size: 1.2em; color: var(--texto-prin); line-height: 1.5; margin: 0;">
+            Faça uma rodada completa para receber a análise de precisão, transições e velocidade.
+        </p>
+    </div>
+
+    <div class="card" id="card-tabela" style="padding:0; overflow:hidden;">
+      <h3 style="margin:0; padding:20px; background: var(--bg-caixas); border-bottom:1px solid var(--borda); color: var(--texto-prin);">Histórico de Disparos</h3>
+      <table>
+        <thead><tr><th>#</th><th>ZONA</th><th>SPLIT <span class="info-icon" onclick="abrirModalInfo('split')" style="width:18px; height:18px; font-size:0.75rem;">?</span></th><th>H.F</th></tr></thead>
+        <tbody id="shotsBody"></tbody>
+      </table>
+    </div>
+
+  </div> 
+</div> 
+
+<div id="toast" style="visibility:hidden; min-width:250px; background-color:#333; color:#fff; text-align:center; border-radius:5px; padding:16px; position:fixed; z-index:9999; left:50%; bottom:30px; transform:translateX(-50%); font-size:16px; font-weight:bold; box-shadow: 0px 4px 6px rgba(0,0,0,0.3); transition: visibility 0.5s, opacity 0.5s;"></div>
+<div id="infoModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <span class="close-modal" onclick="fecharModalInfo()">&times;</span>
+        <h3 id="modalTitle" style="color: var(--primary); margin-top: 0; padding-right: 20px;">Título</h3>
+        <p id="modalText" style="line-height: 1.6; color: var(--texto-prin); font-size: 1.1rem; margin-bottom: 0;">Texto explicativo aqui.</p>
+    </div>
+</div>
+<div id="modal-calibracao" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <h3 style="color: #ff9800;">🎯 CALIBRAÇÃO DE ALVOS</h3>
+        
+        <div style="color: var(--texto-prin); margin-bottom: 25px; line-height: 1.6; font-size: 1rem; text-align: left; background: var(--bg-fundo); padding: 15px; border-radius: 12px; border: 1px solid var(--borda);">
+            <div style="margin-bottom: 8px;"><b>1.</b> Todos os alvos serão zerados.</div>
+            <div style="margin-bottom: 8px;"><b>2.</b> Efetue exatos <b>5 disparos</b> no centro.</div>
+            <div style="margin-bottom: 8px;"><b>3.</b> O alvo piscará <span style="color: #4da3ff; font-weight: bold;">Azul</span> a cada tiro.</div>
+            <div><b>4.</b> No 5º tiro, piscará <span style="color: #4CAF50; font-weight: bold;">Verde longo</span>.</div>
+        </div>
+
+        <div style="display: flex; gap: 15px;">
+            <button onclick="fecharModais()" class="btn-modal-option" style="background: var(--bg-fundo); border-color: var(--borda);">CANCELAR</button>
+            <button onclick="confirmarCalibracao()" class="btn-modal-option" style="background: #ff9800; color: #fff; border: none;">INICIAR</button>
+        </div>
+    </div>
+</div>
+<div id="modal-score-mode" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 350px; text-align: center;">
+        <h3 style="color: var(--primary);">MODO DE PONTUAÇÃO</h3>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="updateSelection('scoreModeSel', 'best2', 'REGRAS IPSC')" class="btn-modal-option">REGRAS IPSC (2 Melhores)</button>
+            <button onclick="updateSelection('scoreModeSel', 'full', 'ILIMITADO')" class="btn-modal-option">ILIMITADO (Todos contam)</button>
+        </div>
+        <button onclick="fecharModais()" class="btn-cancel">CANCELAR</button>
+    </div>
+</div>
+
+<div id="modal-laser-type" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 350px; text-align: center;">
+        <h3 style="color: var(--primary);">TECNOLOGIA DO LASER</h3>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="updateSelection('laserType', '7', 'Laser Vermelho')" class="btn-modal-option">🔴 LASER VERMELHO</button>
+            <button onclick="updateSelection('laserType', '6', 'Infravermelho (IR)')" class="btn-modal-option">🌑 INFRAVERMELHO (IR)</button>
+        </div>
+        <button onclick="fecharModais()" class="btn-cancel">CANCELAR</button>
+    </div>
+</div>
+
+<div id="modal-target-sel" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 350px; text-align: center;">
+        <h3 style="color: var(--primary);">ALVO EM FOCO</h3>
+        <div id="list-targets-modal" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; margin-bottom: 15px;">
+            <button onclick="updateSelection('targetSel', '255', 'Todos os Alvos')" class="btn-modal-option">TODOS OS ALVOS</button>
+        </div>
+        <button onclick="fecharModais()" class="btn-cancel">CANCELAR</button>
+    </div>
+</div>
+
+<div id="modal-auto-mode" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 350px; text-align: center;">
+        <h3 style="color: var(--primary);">MODO DE EXECUÇÃO</h3>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="updateSelection('autoModeSel', '0', 'Manual (Uma vez)')" class="btn-modal-option">MANUAL (1 Rodada)</button>
+            <button onclick="updateSelection('autoModeSel', '3', 'Auto (3 Rodadas)')" class="btn-modal-option">AUTOMÁTICO (3 Rodadas)</button>
+            <button onclick="updateSelection('autoModeSel', '5', 'Auto (5 Rodadas)')" class="btn-modal-option">AUTOMÁTICO (5 Rodadas)</button>
+            <button onclick="updateSelection('autoModeSel', '10', 'Auto (10 Rodadas)')" class="btn-modal-option">AUTOMÁTICO (10 Rodadas)</button>
+        </div>
+        <button onclick="fecharModais()" class="btn-cancel">CANCELAR</button>
+    </div>
+</div>
+
+<div id="modal-max-shots" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 350px; text-align: center;">
+        <h3 style="color: var(--primary);">LIMITE DE DISPAROS</h3>
+        <button onclick="updateSelection('maxShotsSel', '999', 'Irrestrito')" class="btn-modal-option" style="width: 100%; border-color: var(--primary); margin-bottom: 20px;">♾️ IRRESTRITO</button>
+        <div style="background: var(--bg-fundo); padding: 15px; border-radius: 8px; border: 1px solid var(--borda);">
+            <label style="color: var(--texto-sec); font-size: 0.8rem; font-weight: bold; margin-bottom: 10px; display: block; text-transform: uppercase;">Ou defina o limite exato:</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="customShotsInput" min="1" max="100" step="1" placeholder="Ex: 15" style="flex: 1; margin: 0 !important; text-align: center; font-size: 1.2rem !important; padding: 10px !important;">
+                <button onclick="confirmarLimiteCustomizado()" class="btn" style="background: var(--primary); color: #111; padding: 10px 20px; font-size: 1rem; margin: 0; box-shadow: none;">OK</button>
+            </div>
+        </div>
+        <button onclick="fecharModais()" class="btn-cancel">CANCELAR</button>
+    </div>
+</div>
+</body>
+</html>
