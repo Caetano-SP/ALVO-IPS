@@ -1,209 +1,747 @@
 /* =========================================
-   1. PALETA DE CORES DINÂMICA
+   1. PALETA DE CORES E DESIGN TOKENS
 ========================================= */
 :root {
-    --bg-fundo: #f4f6f8;      /* Um cinza beeem mais claro e elegante que o #ececec */
-    --bg-caixas: #ffffff;     
-    --texto-prin: #1a1a1a;    /* Preto mais suave, menos agressivo aos olhos */
-    --texto-sec: #637381;     
-    --borda: #dfe4ea;         
-    --bg-destaque: #f1f8e9;   
-    --bg-alerta: #fff5f5;     
-    --primary: #4CAF50; 
-    --secondary: #F57C00; 
-    --danger: #E53935;        /* Um vermelho mais moderno */
-    --dark: #212B36; 
+    /* Paleta Dia (Clean & Professional) */
+    --bg-fundo:    #f0f2f5;
+    --bg-caixas:  #ffffff;
+    --bg-caixas-rgb: 255, 255, 255;
+    --texto-prin: #1a1a2e;
+    --texto-sec:  #637381;
+    --borda:      #e0e5ec;
+    --bg-destaque: #f1f8e9;
+    --bg-alerta:   #fff5f5;
+    --primary:    #4CAF50;
+    --primary-glow: rgba(76, 175, 80, 0.2);
+    --secondary:  #F57C00;
+    --danger:     #E53935;
+    --dark:       #212B36;
+    /* Sombras semânticas */
+    --shadow-card: 0 2px 12px rgba(0,0,0,0.07);
+    --shadow-hover: 0 8px 24px rgba(0,0,0,0.12);
+    --shadow-btn:  0 4px 8px rgba(0,0,0,0.1);
+    /* Border radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    /* Z-index centralizados */
+    --z-header: 100;
+    --z-modal:  10000;
+    /* Transitions */
+    --ease-smooth: cubic-bezier(0.25, 0.8, 0.25, 1);
+    --ease-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 body.dark-mode {
-    --bg-fundo: #161c24;      /* Fundo dark de app moderno (não é preto puro) */
-    --bg-caixas: #212b36;     /* Caixas com contraste leve do fundo */
-    --texto-prin: #f9fafb;    
-    --texto-sec: #919eab;     
-    --borda: #333333;         
-    --bg-destaque: #1a2a1a;   
-    --bg-alerta: #3a1515;     
-}
-
-* { box-sizing: border-box; }
-
-body { 
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-    background: var(--bg-fundo); 
-    color: var(--texto-prin);
-    margin: 0; 
-    padding: 0; 
-    overflow-x: hidden; 
-    transition: background-color 0.3s, color 0.3s; 
+    --bg-fundo:    #161c24;
+    --bg-caixas:  #212b36;
+    --bg-caixas-rgb: 33, 43, 54;
+    --texto-prin: #f9fafb;
+    --texto-sec:  #919eab;
+    --borda:      #2d3748;
+    --bg-destaque: #1a2a1a;
+    --bg-alerta:   #3a1515;
+    --shadow-card: 0 2px 12px rgba(0,0,0,0.3);
+    --shadow-hover: 0 8px 24px rgba(0,0,0,0.5);
+    --shadow-btn:  0 4px 8px rgba(0,0,0,0.3);
 }
 
 /* =========================================
-   2. LAYOUT PRINCIPAL (AS 3 COLUNAS)
+   2. RESETS E BASE (SÊNIOR)
 ========================================= */
-.main-layout { 
-    display: flex; 
-    flex-direction: column; 
-    gap: 15px; 
-    width: 100%; /* Resolve o vazamento lateral */
-    max-width: 1500px; /* Impede a tela de esticar ao infinito em monitores ultra-wide */
-    margin: 0 auto; 
-    padding: 15px 25px; /* Empurra a coluna da direita pra esquerda criando o respiro */
+*, *::before, *::after {
+    box-sizing: border-box;
+    /* Remove tap highlight azul no Android */
+    -webkit-tap-highlight-color: transparent;
+}
+
+html {
+    scroll-behavior: smooth;
+    /* Previne layout shift ao abrir teclado iOS */
+    height: -webkit-fill-available;
+}
+
+body {
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+                 "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-fundo);
+    color: var(--texto-prin);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    /* Anti-aliasing premium */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Previne bounce scroll iOS (sensação de lentidão) */
+    overscroll-behavior-y: none;
+    transition: background-color 0.3s var(--ease-smooth),
+                color 0.3s var(--ease-smooth);
+}
+
+/* =========================================
+   3. SCROLLBARS PROFISSIONAIS
+========================================= */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--borda) transparent;
+}
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: var(--borda);
+    border-radius: 10px;
+    transition: background 0.3s;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--primary) !important; }
+body.dark-mode ::-webkit-scrollbar-thumb { background: #3a3f47; }
+
+.desktop-sidebar-nav,
+.header-nav-desktop,
+.ajustes-container {
+    display: none;
+}
+
+/* =========================================
+   4. LAYOUT PRINCIPAL (3 COLUNAS)
+========================================= */
+/* =========================================
+   4. LAYOUT PRINCIPAL (HÍBRIDO: TABS MOBILE / 3 COLUNAS DESKTOP)
+========================================= */
+.main-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 12px 20px;
+    /* Compensa o header sticky */
+    padding-top: max(80px, calc(60px + env(safe-area-inset-top)));
+    /* Compensa a barra de navegação inferior no mobile */
+    padding-bottom: calc(90px + env(safe-area-inset-bottom));
     min-height: 100vh;
 }
 
+.left-column, .middle-column, .right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* --- LÓGICA DE TABS NO MOBILE (<= 1079px) --- */
+@media (max-width: 1079px) {
+    /* Por padrão esconde todos os cards de tabulação */
+    .tab-card { display: none !important; }
+    
+    /* Mostra os cards que correspondem à classe da tab ativa no <body>, respeitando se o JS escondeu com display: none */
+    body.tab-controle [data-tab="controle"]:not([style*="none"]) { display: block !important; animation: fadeInTab 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    body.tab-match [data-tab="match"]:not([style*="none"]) { display: block !important; animation: fadeInTab 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    body.tab-match [data-tab="controle"]:not([style*="none"]) { display: block !important; animation: fadeInTab 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    body.tab-alvos [data-tab="alvos"]:not([style*="none"]) { display: block !important; animation: fadeInTab 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    body.tab-analise [data-tab="analise"]:not([style*="none"]) { display: block !important; animation: fadeInTab 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    body.tab-ajustes [data-tab="ajustes"]:not([style*="none"]) { display: block !important; animation: fadeInTab 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    
+    /* Exceções de layout flex para cards específicos */
+    body.tab-analise #wrap-radar-gauge:not([style*="none"]) { display: flex !important; }
+    body.tab-controle #painel-competicao-central:not([style*="none"]) { display: flex !important; animation: fadeInTab 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    body.tab-match #painel-competicao-central:not([style*="none"]) { display: flex !important; animation: fadeInTab 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
+
+@keyframes fadeInTab {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- LÓGICA DE CONTROL ROOM NO DESKTOP (>= 1080px) --- */
 @media (min-width: 1080px) {
-  .main-layout { 
-    display: grid; 
-    /* Reduzi um pouco a largura das colunas laterais para deixar mais elegante */
-    grid-template-columns: 360px 1fr 370px; 
-    gap: 25px; 
-    align-items: start; 
-  }
-.left-column, .middle-column, .right-column { 
+    .main-layout {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 24px;
+        align-items: start;
+        padding-top: 24px;
+        padding-bottom: 24px;
+        max-width: 1600px;
+    }
+
+    .left-column {
+        position: sticky;
+        top: 80px;
+        max-height: none !important;
+        overflow-y: visible !important;
+        padding-right: 8px;
+        scroll-behavior: smooth;
+        overscroll-behavior: contain;
+        transform: translateZ(0);
+        /* Subtle premium styling for the sidebar area */
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: var(--radius-lg);
+        scrollbar-width: none !important;
+    }
+    .left-column::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    /* Wrap middle and right into a unified dashboard flow */
+    .middle-column {
+        grid-column: 2;
+        grid-row: 1;
+        position: static;
+        max-height: none;
+        overflow-y: visible;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .right-column {
+        grid-column: 2;
+        grid-row: 2;
+        position: static;
+        max-height: none;
+        overflow-y: visible;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        margin-top: 0;
+    }
+
+    /* Segmented nav no Header para Desktop */
+    .header-nav-desktop {
+        display: flex;
+        background: rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--borda);
+        border-radius: var(--radius-md);
+        padding: 4px;
+        gap: 6px;
+        align-items: center;
+    }
+    
+    body.dark-mode .header-nav-desktop {
+        background: rgba(255, 255, 255, 0.02);
+    }
+ 
+    .header-nav-desktop .nav-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: var(--texto-sec);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        min-height: auto;
+        width: auto;
+        transition: all 0.2s var(--ease-smooth);
+    }
+ 
+    .header-nav-desktop .nav-item .nav-icon {
+        font-size: 1.05rem;
+        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+ 
+    .header-nav-desktop .nav-item.active {
+        background: var(--primary) !important;
+        color: #111 !important;
+        box-shadow: 0 4px 12px var(--primary-glow);
+    }
+    
+    .header-nav-desktop .nav-item.active .nav-icon {
+        transform: scale(1.1);
+    }
+
+    /* Segmented nav na barra lateral para Desktop */
+    .desktop-sidebar-nav {
+        display: flex;
+        background: rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--borda);
+        border-radius: var(--radius-md);
+        padding: 4px;
+        margin-bottom: 20px;
+        gap: 6px;
+        width: 100%;
+    }
+    
+    body.dark-mode .desktop-sidebar-nav {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .desktop-sidebar-nav .nav-item {
+        flex: 1;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: var(--texto-sec);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        min-height: auto;
+        width: auto;
+        transition: all 0.2s var(--ease-smooth);
+    }
+
+    .desktop-sidebar-nav .nav-item .nav-icon {
+        font-size: 1.05rem;
+        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .desktop-sidebar-nav .nav-item.active {
+        background: var(--primary) !important;
+        color: #111 !important;
+        box-shadow: 0 4px 12px var(--primary-glow);
+    }
+    
+    .desktop-sidebar-nav .nav-item.active .nav-icon {
+        transform: scale(1.1);
+    }
+
+    /* Ocultação e exibição de Abas no Desktop */
+    
+    /* Em qualquer aba que não seja Ajustes, esconde os cards de configuração do sidebar */
+    body:not(.tab-ajustes) #card-config-modo,
+    body:not(.tab-ajustes) #card-config-alvos,
+    body:not(.tab-ajustes) #card-export {
+        display: none !important;
+    }
+    
+    /* Esconde o controle do match quando não na aba Match no desktop */
+    body:not(.tab-match) #card-match-control {
+        display: none !important;
+    }
+    
+    /* Quando na aba de ajustes no desktop, reformata todo o layout de forma monumental */
+    body.tab-ajustes .main-layout {
+        grid-template-columns: 340px 1fr; /* Mantém a proporção da sidebar */
+    }
+    
+    body.tab-ajustes .ajustes-container {
+        grid-column: 2;
+        grid-row: 1 / span 3;
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px; /* Senior Dev: Modais do lado e do outro para evitar scrollbar gigante */
+        align-items: start;
+    }
+
+    body.tab-ajustes .ajustes-container .card {
+        display: block !important;
+        margin-bottom: 0;
+    }
+
+    body.tab-ajustes .middle-column,
+    body.tab-ajustes .right-column {
+        display: none !important;
+    }
+    
+    .site-header {
+        padding: 6px 20px !important; /* Compact header size */
+    }
+
+    /* Modals become more elegant on desktop */
+    .modal-overlay {
+        background: rgba(0,0,0,0.4);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        align-items: center; /* Keep them centered vertically */
+    }
+
+    .modal-content {
+        background: rgba(var(--bg-caixas-rgb), 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+        border-radius: 20px;
+        max-width: 480px; /* Slightly more compact for config modals */
+    }
+}
+
+/* =========================================
+   5. HEADER STICKY (CRÍTICO — MOBILE & DESKTOP)
+========================================= */
+.site-header {
     position: sticky;
-    top: 15px; 
-    max-height: 96vh; 
-    overflow-y: auto; 
-    padding-right: 5px; /* Evita que o texto encoste na barra de rolagem */
-  }
-.left-column::-webkit-scrollbar, .middle-column::-webkit-scrollbar, .right-column::-webkit-scrollbar { 
-      width: 6px; 
-  }
-  .left-column::-webkit-scrollbar-track, .middle-column::-webkit-scrollbar-track, .right-column::-webkit-scrollbar-track { 
-      background: transparent; 
-  }
-  .left-column::-webkit-scrollbar-thumb, .middle-column::-webkit-scrollbar-thumb, .right-column::-webkit-scrollbar-thumb { 
-      background: var(--borda); 
-      border-radius: 10px; 
-  }
+    top: 0;
+    z-index: var(--z-header);
+    background: var(--bg-caixas);
+    border-bottom: 1px solid var(--borda);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    /* GPU layer para evitar redraw no scroll */
+    will-change: transform;
+    /* Padding para notch/safe-area iOS */
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-top: max(10px, env(safe-area-inset-top));
 }
 
+.site-header h1 {
+    font-size: clamp(1.1rem, 3vw, 1.4rem);
+    font-weight: 900;
+    margin: 0;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+}
+
+/* Status de conexão no header */
+.header-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--texto-sec);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--danger);
+    flex-shrink: 0;
+    transition: background 0.3s;
+}
+
+.status-dot.online {
+    background: var(--primary);
+    animation: pulseDot 2s ease-out infinite;
+}
+
+@keyframes pulseDot {
+    0%   { box-shadow: 0 0 0 0 var(--primary-glow); }
+    70%  { box-shadow: 0 0 0 8px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* Modal de aviso de rede (offline) */
+#modal-offline {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    backdrop-filter: blur(8px);
+    z-index: calc(var(--z-modal) + 10);
+    align-items: center;
+    justify-content: center;
+}
+
+.offline-box {
+    background: var(--bg-caixas);
+    border: 2px solid var(--danger);
+    border-radius: var(--radius-lg);
+    padding: 35px 30px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(229, 57, 53, 0.3);
+    animation: popIn 0.35s var(--ease-bounce);
+}
+
+.offline-box h2 {
+    color: var(--danger);
+    font-size: 1.5rem;
+    margin: 0 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.offline-box p {
+    color: var(--texto-sec);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.offline-box .btn-reconnect {
+    background: var(--danger);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 14px 24px;
+    font-size: 1rem;
+    font-weight: 900;
+    cursor: pointer;
+    width: 100%;
+    letter-spacing: 0.5px;
+    transition: filter 0.2s;
+}
+
+.offline-box .btn-reconnect:hover { filter: brightness(1.1); }
+
 /* =========================================
-   3. CAIXAS, TEXTOS E FONTES
+   6. CARDS (GLASSMORPHISM CLEAN)
 ========================================= */
-.card, .table-container { 
-    background: var(--bg-caixas); 
+.card,
+.table-container {
+    background: var(--bg-caixas);
     color: var(--texto-prin);
-    padding: 20px; 
-    border-radius: 15px; 
-    margin-bottom: 15px; 
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
-    text-align: center; 
-    transition: 0.3s;
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 12px;
+    border: 1px solid var(--borda);
+    box-shadow: var(--shadow-card);
+    text-align: center;
+    transition: box-shadow 0.2s var(--ease-smooth),
+                border-color 0.2s var(--ease-smooth);
+    /* Previne overflow de filhos */
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
 }
 
-h1, h3 { margin: 0 0 15px 0; color: var(--texto-prin); }
-
-/* CORREÇÃO DO DARK MODE: Usa texto-prin em vez de preto fixo */
-.big { font-size: clamp(3rem, 10vw, 5.5rem); font-weight: 900; margin: 5px 0; line-height: 1; color: var(--texto-prin); }
-.giant-zone { font-size: clamp(6rem, 15vw, 10rem); font-weight: 900; color: var(--danger); line-height: 0.9; margin: 10px 0; }
-.label-small { font-size: 1rem; color: var(--texto-sec); text-transform: uppercase; font-weight: bold; letter-spacing: 1px; }
-
-select { width: 100%; padding: 12px; margin: 5px 0; font-size: 1.1rem; border-radius: 10px; border: 2px solid var(--borda); background: var(--bg-caixas); color: var(--texto-prin); }
+/* Card hover apenas em desktop com mouse real */
+@media (hover: hover) and (pointer: fine) {
+    .card:hover {
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(76, 175, 80, 0.2);
+    }
+}
 
 /* =========================================
-   4. BOTÕES E EXPORTAÇÃO (FLEXBOX SEGURO)
+   7. TIPOGRAFIA E TEXTOS
 ========================================= */
-.export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-.export-grid .btn { width: 100%; margin: 0; padding: 15px; font-size: 1rem; }
+h1, h3 {
+    margin: 0 0 14px;
+    color: var(--texto-prin);
+    letter-spacing: -0.3px;
+}
+
+.big {
+    font-size: clamp(2.8rem, 9vw, 5rem);
+    font-weight: 900;
+    margin: 5px 0;
+    line-height: 1;
+    color: var(--texto-prin);
+    letter-spacing: -2px;
+    /* Impede overflow do número */
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.giant-zone {
+    font-size: clamp(5rem, 14vw, 9rem);
+    font-weight: 900;
+    color: var(--danger);
+    line-height: 0.9;
+    margin: 10px 0;
+    /* Transição suave na cor da zona */
+    transition: color 0.15s ease-out;
+}
+
+.label-small {
+    font-size: 0.8rem;
+    color: var(--texto-sec);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 1px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* =========================================
+   8. BOTÕES (TOUCH-SAFE)
+========================================= */
+.btn {
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 14px 18px;
+    cursor: pointer;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 800;
+    color: white;
+    box-shadow: var(--shadow-btn);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    /* WCAG AA touch target */
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    /* Apenas propriedades baratas para animar */
+    transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Hover só em dispositivos com ponteiro real (sem ghost hover mobile) */
+@media (hover: hover) and (pointer: fine) {
+    .btn:hover {
+        filter: brightness(1.1);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+}
+
+.btn:active {
+    transform: scale(0.95) !important;
+    filter: brightness(0.88) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.btn-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+}
+
+.btn-start {
+    background: var(--primary);
+    width: 100%;
+    font-size: 1.4rem;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px var(--primary-glow);
+}
+.btn-start:hover { box-shadow: 0 8px 25px var(--primary-glow) !important; }
+
+.btn-stop { background: var(--secondary); flex: 1; }
+.btn-reset { background: var(--danger);  flex: 1; }
+
+.export-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+}
+.export-grid .btn { width: 100%; margin: 0; padding: 13px; font-size: 0.9rem; }
 
 .row-50-50 { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
 .row-50-50 .btn { flex: 1; width: 100%; margin: 0; }
 
-.btn { 
-    font-family: inherit; /* Puxa a mesma fonte moderna do body */
-    font-size: 1.1rem; 
-    padding: 18px; 
-    cursor: pointer; 
-    border: none; 
-    border-radius: 12px; 
-    font-weight: 800; 
-    color: white; 
-    transition: all 0.2s ease; 
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-}
-.btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-    filter: brightness(1.1);
+/* =========================================
+   9. TABELA DE DISPAROS
+========================================= */
+#card-tabela {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 0;
 }
 
-.btn:active { 
-    transform: scale(0.96) translateY(0); 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1.2rem;
+    table-layout: fixed;
 }
-.btn-grid { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
-.btn-start { background: var(--primary); width: 100%; font-size: 1.5rem; margin-top: 10px; }
-.btn-stop { background: var(--secondary); flex: 1; }
-.btn-reset { background: var(--danger); flex: 1; }
+
+th {
+    background: var(--bg-fundo);
+    padding: 14px 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--texto-sec);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 2px solid var(--borda);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+td {
+    padding: 14px 10px;
+    border-bottom: 1px solid var(--borda);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--texto-prin);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+tbody tr { transition: background 0.1s ease; }
+tbody tr:hover { background: var(--bg-destaque); }
+tbody tr:last-child td { border-bottom: none; }
+
+@media (max-width: 600px) {
+    th { font-size: 0.85rem; padding: 10px 6px; }
+    td { font-size: 1rem;  padding: 10px 6px; }
+}
 
 /* =========================================
-   5. TABELA DE DISPAROS
+   10. GRÁFICOS
 ========================================= */
-.table-container { overflow: hidden; }
-table { width: 100%; border-collapse: collapse; font-size: 1.1rem; }
-th { background: var(--bg-fundo); padding: 15px; font-size: 1.4rem; color: var(--texto-prin); }
-td { padding: 12px; border-bottom: 1px solid var(--borda); font-size: 1.6rem; font-weight: bold; color: var(--texto-prin); }
-
-/* =========================================
-   6. GRÁFICOS (TRAVAMENTO DE TAMANHO)
-========================================= */
-#hfChartArea { 
-  background: var(--bg-caixas); 
-  border-radius: 15px;
-  padding: 15px; 
-  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-  display: none;
-  width: 100%;
-  height: 400px; /* ISSO IMPEDE O GRÁFICO DE CRESCER AO INFINITO E QUEBRAR A TELA */
-  box-sizing: border-box; 
-  margin-top: 15px;
+#hfChartArea {
+    background: var(--bg-caixas);
+    border-radius: var(--radius-lg);
+    padding: 15px;
+    box-shadow: var(--shadow-card);
+    display: none;
+    width: 100%;
+    height: 350px;
+    box-sizing: border-box;
+    margin-top: 12px;
+    border: 1px solid var(--borda);
 }
-.chart-container { 
-    display: none; 
-    justify-content: space-around; 
-    align-items: flex-end; 
-    height: 300px; /* Reduzi um pouco a altura para caber melhor na tela */
-    padding-top: 20px; 
+
+.chart-container {
+    display: none;
+    justify-content: space-around;
+    align-items: flex-end;
+    height: 260px;
+    padding-top: 20px;
     width: 100%;
 }
+
 canvas#hfChart { width: 100% !important; height: 100% !important; }
 
-/* Gráfico de Barras */
-.bar-wrapper { 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    flex: 1; 
-    height: 100%; 
-    justify-content: flex-end; 
-    min-width: 0; /* Impede a barra de forçar a largura */
+.bar-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    height: 100%;
+    justify-content: flex-end;
+    min-width: 0;
 }
-.bar { 
-    width: 60%; /* Deixei as barras um pouco mais finas */
-    max-width: 50px; 
-    transition: height 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67); 
-    border-radius: 6px 6px 0 0; 
-    position: relative; 
+.bar {
+    width: 55%;
+    max-width: 48px;
+    transition: height 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+    border-radius: 6px 6px 0 0;
+    position: relative;
 }
-.bar-val { 
-    font-weight: bold; 
-    margin-bottom: 5px; 
-    font-size: 1.1rem; 
-    color: var(--texto-prin); 
+.bar-val {
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 1.15rem;
+    color: var(--texto-prin);
 }
 .chart-container .label-small {
-    font-size: 0.75rem; 
+    font-size: 0.85rem;
     margin-top: 8px;
     text-align: center;
-    word-break: break-all; /* Força a quebra se a palavra for muito grande */
+    word-break: break-all;
 }
+
 @media (max-width: 600px) {
-    .chart-container .label-small { font-size: 0.7rem; }
-    #chartView .label-small {
-        white-space: pre-line; /* Permite quebras de linha manuais se precisar */
-    }
+    .chart-container .label-small { font-size: 0.75rem; }
 }
+
 .bar-A { background: var(--primary); }
 .bar-C { background: #2196F3; }
 .bar-D { background: #FFEB3B; }
@@ -212,305 +750,1177 @@ canvas#hfChart { width: 100% !important; height: 100% !important; }
 .bar-E { background: #FF4500; }
 
 /* =========================================
-   7. CHAVES E TOGGLES
+   11. TOGGLES E CHAVES
 ========================================= */
-/* =========================================
-   ALINHAMENTO SEGURO DOS TOGGLES (MOBILE)
-========================================= */
-.toggle-group { 
+.toggle-group {
     display: grid !important;
-    /* Tenta colocar os 4 em linha. Se a tela for muito fina (celular pequeno), vira um 2x2 perfeito */
-    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); 
-    gap: 15px;               
-    margin-top: 15px; 
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
     width: 100%;
-    justify-items: center; /* Centraliza o botão dentro do próprio quadrado */
+    justify-items: center;
 }
-.toggle { appearance: none; width: 60px; height: 30px; background: #ccc; border-radius: 30px; position: relative; cursor: pointer; }
-.toggle:checked { background: var(--primary); }
-.toggle::before { content: ""; position: absolute; width: 24px; height: 24px; background: #fff; border-radius: 50%; top: 3px; left: 3px; transition: .3s; }
-.toggle:checked::before { left: 33px; }
 
-/* Cores das Zonas na Tabela */
-.color-A { color: var(--primary) !important; } 
-.color-C { color: #2196F3 !important; }       
-.color-D { color: #FFEB3B !important; }    
+.toggle {
+    appearance: none;
+    width: 56px;
+    height: 28px;
+    background: #ccc;
+    border-radius: 28px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.25s var(--ease-smooth);
+    touch-action: manipulation;
+}
+.toggle:checked { background: var(--primary); }
+.toggle::before {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: left 0.25s var(--ease-smooth);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.toggle:checked::before { left: 31px; }
+
+/* Cores das Zonas */
+.color-A { color: var(--primary) !important; }
+.color-C { color: #2196F3 !important; }
+.color-D { color: #FFEB3B !important; }
 .color-M { color: var(--danger) !important; font-weight: 900; }
 .color-M-metal { color: #9E9E9E !important; font-weight: 900; }
+
 /* =========================================
-   8. IMPRESSÃO PDF
+   12. INPUTS E SELECTS
 ========================================= */
-@media print {
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  body { background: white !important; color: black !important; }
-  .btn, select, .toggle-group, .export-grid, h1, hr, .label-small { display: none !important; }
-  .left-column { display: block !important; width: 100% !important; position: static !important; box-shadow: none !important; background: none !important; }
-  #score, #hf { display: block !important; border: none !important; text-align: left !important; margin-bottom: 10px !important; color: black !important; }
-  #score::before { content: "PONTOS TOTAIS: "; font-size: 16px; color: #666; }
-  #hf::before { content: "HIT FACTOR: "; font-size: 16px; color: #666; }
-  #lastZone, .giant-zone { display: none !important; }
-  .main-layout { display: block !important; }
-  .middle-column, .right-column { width: 100% !important; display: block !important; page-break-inside: avoid; }
-  .card { border: 1px solid #ddd !important; box-shadow: none !important; margin-bottom: 20px !important; background: white !important; }
-}
-/* =========================================
-   BLINDAGEM: INPUTS E SELECTS DINÂMICOS
-========================================= */
-input[type="text"], input[type="number"], select { 
-    width: 100% !important; 
-    padding: 12px !important; 
-    margin-bottom: 10px !important; 
-    font-size: 1.1rem !important; 
-    font-weight: bold;
-    border-radius: 6px !important; 
-    
-    /* A MÁGICA AQUI: Usa as variáveis dinâmicas do seu tema! */
-    border: 1px solid var(--borda) !important; 
-    background-color: var(--bg-caixas) !important; 
-    color: var(--texto-prin) !important; 
-    
-    transition: 0.3s;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+input[type="text"],
+input[type="number"],
+select {
+    width: 100% !important;
+    padding: 11px 14px !important;
+    margin-bottom: 10px !important;
+    font-size: 1rem !important;
+    font-weight: 600;
+    border-radius: var(--radius-sm) !important;
+    border: 1px solid var(--borda) !important;
+    background-color: var(--bg-caixas) !important;
+    color: var(--texto-prin) !important;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    /* WCAG touch target */
+    min-height: 44px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
-input[type="text"]:focus, input[type="number"]:focus, select:focus {
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
     outline: none !important;
     border-color: var(--primary) !important;
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.2), inset 0 2px 5px rgba(0,0,0,0.05) !important;
+    box-shadow: 0 0 0 3px var(--primary-glow) !important;
 }
 
-/* Remove as setinhas feias de dentro do input de número */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
 
-/* Deixa a borda verde (ou a cor primária) quando você clica para digitar */
-input[type="text"]:focus, select:focus {
-    outline: none !important;
-    border-color: var(--primary) !important;
+input[type="text"]::placeholder { color: var(--texto-sec) !important; opacity: 0.8; }
+
+/* Botão que substitui o Select nativo */
+.btn-select-modern {
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--bg-fundo);
+    color: var(--texto-prin);
+    border: 1px solid var(--borda);
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+    margin-bottom: 12px;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+    min-height: 50px;
+    touch-action: manipulation;
+    font-family: inherit;
+}
+.btn-select-modern:hover { border-color: var(--primary); }
+.btn-select-modern:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
-/* Arruma a cor do placeholder ("Digite seu nome...") no modo Dark */
-input[type="text"]::placeholder {
-    color: var(--texto-sec) !important;
-    opacity: 0.8;
-}
-/* CAIXA DO 360 AI ANALYST */
-.ai-card {
-    background-color: #e3f2fd !important; 
-    border-left: 5px solid #1976D2 !important;
-}
 /* =========================================
-   BLINDAGEM DO CRONÔMETRO (NÃO VAZAR A TELA)
-========================================= */
-#time { 
-    font-size: clamp(2.5rem, 12vw, 5.5rem) !important; 
-    font-weight: 900 !important;
-    text-align: center !important;
-    white-space: nowrap !important; /* A mágica que impede de quebrar a linha */
-    width: 100% !important;
-    margin: 0 auto !important;
-    letter-spacing: -2px !important; 
-}
-body.dark-mode .ai-card {
-    background-color: #1a2430 !important; 
-    border-left: 5px solid #4da3ff !important;
-}
-/* =========================================
-   ORDENAÇÃO EXCLUSIVA PARA TELEMÓVEL (MOBILE)
-========================================= */
-@media (max-width: 1079px) {
-    /* Derruba as colunas para o telemóvel as poder reordenar */
-    .left-column, .middle-column, .right-column {
-        display: contents !important;
-    }
-
-    .main-layout {
-        display: flex !important;
-        flex-direction: column !important;
-    }
-
-    /* A NOVA ORDEM DE VISUALIZAÇÃO NO TELEMÓVEL */
-    #card-timer        { order: 1 !important; }
-    #card-botoes       { order: 2 !important; }
-    #card-matriz       { order: 3 !important; } /* Matriz primeiro */
-    #wrap-radar-gauge  { order: 4 !important; } /* Radar e Gauge lado a lado (ou um em cima do outro no mobile) */
-    #chartView         { order: 5 !important; } /* Barras */
-    #hfChartArea       { order: 6 !important; } /* Linha */
-    #card-ia           { order: 7 !important; }
-    #card-tabela       { order: 8 !important; }
-    #card-config-modo  { order: 9 !important; }
-    #card-config-alvos { order: 10 !important; }
-    #card-export       { order: 11 !important;}
-} 
-/* =========================================
-   MODAIS PREMIUM (POP-UPS)
+   13. MODAIS PROFISSIONAIS
 ========================================= */
 .modal-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.75); 
-    display: flex; align-items: center; justify-content: center;
-    z-index: 10000; backdrop-filter: blur(5px);
-    animation: fadeIn 0.2s ease;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    padding: 16px;
+    /* Previne scroll atrás do modal */
+    overscroll-behavior: contain;
 }
 
 .modal-content {
-    background: var(--bg-caixas); 
+    background: var(--bg-caixas);
     border: 1px solid var(--borda);
-    padding: 30px; 
-    border-radius: 20px; /* Arredondamento premium */
-    width: 90%; 
+    padding: 28px 24px;
+    border-radius: var(--radius-lg);
+    width: 100%;
     max-width: 400px;
-    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); /* Sombra profunda */
-    position: relative; 
-    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+    /* Max-height garante scroll interno em telas pequenas */
+    max-height: min(90vh, 700px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+    position: relative;
+    animation: popIn 0.3s var(--ease-bounce);
     text-align: center;
+    /* Safe-area para iPhone X+ */
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+/* Design de Modal para Desktop - Mais Largo e Limpo */
+@media (min-width: 1080px) {
+    .modal-content {
+        max-width: 540px;
+        padding: 40px;
+        border-radius: 20px;
+    }
 }
 
 .modal-content h3 {
-    font-size: 1.3rem; font-weight: 900; letter-spacing: 1px; margin-bottom: 25px;
+    font-size: 1.2rem;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    margin: 0 0 20px;
     color: var(--primary);
 }
-.close-modal:hover { color: var(--danger); transform: scale(1.1); }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.close-modal {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: var(--texto-sec);
+    cursor: pointer;
+    transition: color 0.2s, transform 0.2s;
+    line-height: 1;
+    padding: 6px;
+    /* WCAG touch target — mínimo 44px */
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+}
+.close-modal:hover { color: var(--danger); transform: scale(1.15); }
+
+/* Botões de opção do modal */
+.btn-modal-option {
+    background: var(--bg-fundo);
+    border: 1px solid var(--borda);
+    color: var(--texto-prin);
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    transition: all 0.18s var(--ease-smooth);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 8px;
+    /* touch target */
+    min-height: 48px;
+    touch-action: manipulation;
+}
+.btn-modal-option:hover {
+    background: var(--bg-destaque);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-hover);
+}
+.btn-modal-option:active {
+    transform: scale(0.97) !important;
+    filter: brightness(0.9);
+}
+
+.btn-cancel {
+    margin-top: 12px;
+    background: transparent;
+    border: none;
+    color: var(--texto-sec);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    width: 100%;
+    transition: color 0.2s;
+    padding: 10px;
+    min-height: 44px;
+    font-family: inherit;
+}
+.btn-cancel:hover { color: var(--danger); }
+
+@keyframes popIn {
+    from { transform: scale(0.92) translateY(16px); opacity: 0; }
+    to   { transform: scale(1)    translateY(0);    opacity: 1; }
+}
+
+/* Responsive modals */
+@media (max-width: 768px) {
+    .modal-content {
+        padding: 20px 16px;
+        border-radius: var(--radius-md);
+        max-height: 88vh;
+    }
+    .modal-huge,
+    .modal-large {
+        width: 97% !important;
+        margin: 8px !important;
+    }
+    .modal-content table { font-size: 0.88rem !important; }
+    .modal-content td, .modal-content th { padding: 7px 4px !important; }
+}
+
+/* =========================================
+   14. CRONÔMETRO
+========================================= */
+#chrono {
+    font-size: clamp(2.8rem, 9vw, 4.5rem) !important;
+    font-weight: 900 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    letter-spacing: -2px !important;
+    overflow: hidden !important;
+    font-variant-numeric: tabular-nums; /* Impede pulo visual nos dígitos */
+}
+
+/* =========================================
+   15. TOAST (FEEDBACK TÁTIL)
+========================================= */
+#toast {
+    visibility: hidden;
+    opacity: 0;
+    min-width: 240px;
+    background: #212b36;
+    color: #fff;
+    text-align: center;
+    border-radius: 10px;
+    padding: 14px 20px;
+    position: fixed;
+    z-index: calc(var(--z-modal) + 5);
+    left: 50%;
+    /* Safe area para nav bar mobile */
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(8px);
+    font-size: 0.95rem;
+    font-weight: bold;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    transition: opacity 0.35s var(--ease-smooth),
+                transform 0.35s var(--ease-smooth),
+                visibility 0.35s;
+    pointer-events: none;
+}
+
+#toast.show {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* =========================================
+   16. ÍCONE DE INFO
+========================================= */
 .info-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 22px;
     height: 22px;
-    background-color: rgba(255, 255, 255, 0.1);
+    background: rgba(99, 115, 129, 0.1);
     border: 1px solid var(--borda);
     color: var(--texto-sec);
     border-radius: 50%;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 900;
     font-family: monospace;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s var(--ease-bounce);
     user-select: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    margin-left: 8px; /* Dá um espacinho do texto */
+    margin-left: 6px;
+    /* touch target */
+    min-width: 22px;
+    min-height: 22px;
+    touch-action: manipulation;
 }
-
 .info-icon:hover {
-    background-color: var(--primary);
+    background: var(--primary);
     color: #111;
     border-color: var(--primary);
-    transform: scale(1.15);
+    transform: scale(1.18);
 }
-/* Botão que substitui o Select (Adeus Preto Feio!) */
-.btn-select-modern {
-    width: 100%; padding: 12px 15px;
-    background: var(--bg-fundo); /* Fica claro de dia e escuro de noite */
-    color: var(--texto-prin);
-    border: 1px solid var(--borda);
-    border-radius: 6px; font-size: 0.95rem; font-weight: bold;
-    cursor: pointer; display: flex; justify-content: space-between; align-items: center;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); margin-top: 5px; transition: 0.3s;
-}
-.btn-select-modern:hover { border-color: var(--primary); }
-
-/* Opções dentro do Modal */
-.btn-modal-option {
-    background: var(--bg-fundo); 
-    border: 2px solid transparent; 
-    color: var(--texto-prin); 
-    padding: 16px; 
-    border-radius: 12px;
-    font-weight: 800; cursor: pointer; text-transform: uppercase; 
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex; align-items: center; justify-content: center; gap: 10px;
-    width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 10px;
-}
-.btn-modal-option:hover { 
-    background: var(--bg-destaque); 
-    border-color: var(--primary); 
-    color: var(--primary);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-}
-
-.btn-cancel {
-    margin-top: 15px; background: transparent; border: none; 
-    color: var(--texto-sec); font-weight: bold; text-transform: uppercase;
-    letter-spacing: 1px; cursor: pointer; font-size: 0.85rem; width: 100%;
-    transition: 0.2s; padding: 10px;
-}
-.bt
 
 /* =========================================
-   MATRIZ TÁTICA IPSC (CLONE DO HARDWARE)
+   17. AI CARD
 ========================================= */
-/* Trava de segurança: Máximo de 5 alvos por fileira (aprox. 750px) */
-.alvos-grid-ipsc { 
-    display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; 
-    padding: 10px; max-width: 750px; margin: 0 auto; 
+.ai-card {
+    background-color: #e8f4fd !important;
+    border-left: 4px solid #1976D2 !important;
+    text-align: left !important;
 }
-.ipsc-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.ipsc-label { font-weight: 900; color: var(--texto-sec); font-size: 0.85rem; }
+.ai-card p#aiFeedback { color: #1a1a1a !important; }
 
-/* A Caixa Preta 3D */
+body.dark-mode .ai-card {
+    background-color: #1a2430 !important;
+    border-left: 4px solid #4da3ff !important;
+}
+body.dark-mode .ai-card p#aiFeedback { color: #f9fafb !important; }
+
+/* =========================================
+   18. MATRIZ TÁTICA IPSC
+========================================= */
+.alvos-grid-ipsc {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 10px;
+}
+
+.ipsc-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    max-width: 110px;
+    flex: 0 1 110px;
+}
+
+.ipsc-label {
+    font-weight: 700;
+    color: var(--texto-sec);
+    font-size: 0.78rem;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+
 .ipsc-tactical-box {
-    position: relative; 
-    width: 130px; height: 160px; 
-    background: #111; 
-    border-radius: 4px; 
-    display: flex; justify-content: center; align-items: center; /* Centraliza o alvo na caixa */
-    box-shadow: 0 10px 20px rgba(0,0,0,0.3), inset 0 0 10px rgba(255,255,255,0.05);
+    position: relative;
+    width: 100%;
+    max-width: 110px;
+    aspect-ratio: 11 / 14;
+    height: auto;
+    background: #111;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.3), inset 0 0 10px rgba(255,255,255,0.04);
+    /* Transição suave de borda ao acertar */
+    transition: box-shadow 0.1s ease;
 }
-/* =========================================
-   O ALVO VETORIAL (SVG) - Precisão Mil-Spec
-========================================= */
+
 .ipsc-svg-target {
-    width: 110px; 
-    height: 130px; 
+    width: 85%;
+    height: 85%;
     display: block;
     z-index: 5;
 }
 
-/* Propriedades das linhas sólidas concêntricas */
 .svg-zone-d, .svg-zone-c, .svg-zone-a {
-    fill: #f4f4f4;        /* Cor da face (Branco Gelo) */
-    stroke: #222222;      /* Cor da linha (Sólida e Escura) */
-    stroke-width: 1.5;    /* Espessura exata da impressão */
-    stroke-linejoin: round; /* Quinas perfeitas e conectadas */
-    transition: fill 0.1s ease-out; /* Suavidade no tiro */
+    fill: #f4f4f4;
+    stroke: #222;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    transition: fill 0.1s ease-out;
+}
+
+/* Flashes de impacto */
+.flash-alpha   { fill: #4CAF50 !important; }
+.flash-charlie { fill: #2196F3 !important; }
+.flash-delta   { fill: #FFC107 !important; }
+.flash-miss .svg-zone-d,
+.flash-miss .svg-zone-c,
+.flash-miss .svg-zone-a { fill: #E53935 !important; }
+
+/* Metálicos */
+.svg-zone-m, .svg-zone-p {
+    fill: #f4f4f4; stroke: #ccc; stroke-width: 2;
+    transition: fill 0.1s ease-out;
+}
+.flash-metal { fill: #9E9E9E !important; stroke: #777 !important; }
+.flash-popper .svg-zone-p { fill: #757575 !important; stroke: #555 !important; }
+.flash-miss .svg-zone-m,
+.flash-miss .svg-zone-p { fill: #E53935 !important; }
+
+/* =========================================
+   19. SELETOR NUMÉRICO (COUNTER)
+========================================= */
+.stage-counter-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin: 14px 0 22px;
+}
+
+.counter-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--bg-caixas);
+    border: 2px solid var(--borda);
+    color: var(--texto-prin);
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-btn);
+    transition: all 0.2s var(--ease-smooth);
+    user-select: none;
+    touch-action: manipulation;
+    font-family: inherit;
+}
+.counter-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+.counter-btn:active { transform: scale(0.92); }
+
+.counter-value-display {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--primary);
+    width: 60px;
+    text-align: center;
+    user-select: none;
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
 }
 
 /* =========================================
-   ANIMAÇÕES DE IMPACTO (FLASHES NATIVOS SVG)
+   20. MODAL STICKY TABLE HEADERS
 ========================================= */
-/* O "Fill" injeta a cor diretamente na geometria calculada */
-.flash-alpha   { fill: #4CAF50 !important; } /* Verde no Alfa */
-.flash-charlie { fill: #2196F3 !important; } /* Azul no Charlie */
-.flash-delta   { fill: #FFC107 !important; } /* Amarelo no Delta */
-
-/* No MISS, forçamos todas as camadas a ficarem vermelhas */
-.flash-miss .svg-zone-d, 
-.flash-miss .svg-zone-c, 
-.flash-miss .svg-zone-a { 
-    fill: #E53935 !important; 
+.modal-content th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-fundo) !important;
+    z-index: 10;
+    box-shadow: inset 0 -2px 0 var(--borda);
 }
+
 /* =========================================
-   ALVOS METÁLICOS VETORIAIS (SVG)
+   21. RESPONSIVIDADE MOBILE — ORDENAÇÃO
 ========================================= */
-/* Face padrão (Branco Gelo) */
-.svg-zone-m, .svg-zone-p { 
-    fill: #f4f4f4; stroke: #ccc; stroke-width: 2; 
-    transition: fill 0.1s ease-out; 
+@media (max-width: 1079px) {
+    .main-layout {
+        padding-top: 12px;
+    }
+
+    .left-column,
+    .middle-column,
+    .right-column {
+        display: contents !important;
+    }
+
+    .main-layout {
+        display: flex !important;
+        flex-direction: column !important;
+        padding: 12px !important;
+        gap: 12px !important;
+    }
+
+    /* Ordem de exibição mobile — conteúdo mais importante primeiro */
+    #card-timer        { order: 1 !important; }
+    #card-botoes       { order: 2 !important; }
+    #card-matriz       { order: 3 !important; }
+    #wrap-radar-gauge  { order: 4 !important; }
+    #chartView         { order: 5 !important; }
+    #hfChartArea       { order: 6 !important; }
+    #card-ia           { order: 7 !important; }
+    #card-tabela       { order: 8 !important; }
+    #card-config-modo  { order: 9 !important; }
+    #card-config-alvos { order: 10 !important; }
+    #card-export       { order: 11 !important; }
+
+    /* Gráficos: altura reduzida para não dominar a viewport */
+    #hfChartArea { height: auto !important; }
+    #wrap-radar-gauge > div { min-height: 220px; height: 260px; }
+
+    /* Tabela compacta em mobile */
+    td, th {
+        font-size: 0.88rem !important;
+        padding: 9px 4px !important;
+    }
 }
 
-/* FLASHES DE IMPACTO NO METAL */
-/* Cinza Iluminado para o Prato */
-.flash-metal { fill: #9E9E9E !important; stroke: #777 !important; } 
+@media (max-width: 768px) {
+    .main-layout { padding: 10px !important; }
 
-/* Cinza Incandescente para o Popper (corpo inteiro) */
-.flash-popper .svg-zone-p { fill: #757575 !important; stroke: #555 !important; } 
+    .card {
+        padding: 16px !important;
+        border-radius: var(--radius-md) !important;
+    }
 
-/* No MISS, o corpo inteiro fica Vermelho */
-.flash-miss .svg-zone-m, .flash-miss .svg-zone-p { fill: #E53935 !important; }
+    .big {
+        font-size: clamp(2.4rem, 13vw, 4rem) !important;
+    }
+
+    .btn {
+        min-height: 48px !important;
+        padding: 12px 16px !important;
+        font-size: 0.95rem !important;
+    }
+
+    /* Export em coluna em telas muito pequenas */
+    .export-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .export-grid .btn { grid-column: unset !important; }
+
+    /* Radar e Gauge empilhados */
+    #wrap-radar-gauge {
+        flex-direction: column !important;
+    }
+    #wrap-radar-gauge > div {
+        min-width: unset !important;
+        width: 100% !important;
+        height: 240px !important;
+    }
+}
+
+/* =========================================
+   22. IMPRESSÃO PDF
+========================================= */
+@media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { background: white !important; color: black !important; }
+    .btn, select, .toggle-group, .export-grid, h1, hr, .label-small,
+    .site-header, #modal-offline { display: none !important; }
+    .left-column { display: block !important; width: 100% !important; position: static !important; box-shadow: none !important; background: none !important; }
+    #score, #hf { display: block !important; border: none !important; text-align: left !important; margin-bottom: 10px !important; color: black !important; }
+    #lastZone, .giant-zone { display: none !important; }
+    .main-layout { display: block !important; }
+    .middle-column, .right-column { width: 100% !important; display: block !important; page-break-inside: avoid; }
+    .card { border: 1px solid #ddd !important; box-shadow: none !important; margin-bottom: 20px !important; background: white !important; }
+}
+
+/* =========================================
+   23. BOTTOM NAVIGATION BAR (APP-LIKE)
+========================================= */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: calc(70px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--borda);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: var(--z-header);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+}
+
+body.dark-mode .bottom-nav {
+    background: rgba(33, 43, 54, 0.85);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+}
+
+.nav-item {
+    background: transparent;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+    color: var(--texto-sec);
+    transition: all 0.2s ease-out;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.nav-item .nav-icon {
+    font-size: 1.4rem;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.nav-item .nav-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nav-item.active {
+    color: var(--primary);
+}
+
+.nav-item.active .nav-icon {
+    transform: translateY(-2px) scale(1.15);
+}
+
+@media (min-width: 1080px) {
+    /* No desktop, esconde a bottom nav pois usamos o layout clássico de 3 colunas */
+    .bottom-nav { display: none !important; }
+}
+
+/* =========================================
+   24. MODO COMPETIÇÃO (MATCH MODE ACTIVE)
+========================================= */
+
+/* Transição suave ao entrar/sair do tema dourado */
+.card,
+.site-header,
+.btn-select-modern,
+input[type="text"],
+input[type="number"] {
+    transition: background 0.35s var(--ease-smooth),
+                border-color 0.35s var(--ease-smooth),
+                color 0.3s var(--ease-smooth),
+                box-shadow 0.35s var(--ease-smooth);
+}
+
+/* Modificações estéticas no Header durante o Match */
+/* Sobrescrita de Design: Variáveis Douradas para Match Mode Ativo */
+body.match-mode-active {
+    --primary: #FFC107;
+    --primary-glow: rgba(255, 193, 7, 0.25);
+}
+
+/* Modificações estéticas no Header durante o Match */
+body.match-mode-active .site-header {
+    border-bottom: 2px solid var(--primary) !important;
+    box-shadow: 0 4px 20px var(--primary-glow) !important;
+}
+
+/* Painel de Match Compacto no Header (Esporte de Alto Nível) */
+.match-header-panel {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 193, 7, 0.08);
+    border: 1px solid var(--primary);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 0.85rem;
+    box-shadow: 0 0 10px var(--primary-glow);
+    animation: headerPulse 3s infinite alternate;
+    margin: 0 auto;
+}
+
+body.match-mode-active .match-header-panel {
+    display: flex !important;
+}
+
+.match-header-badge {
+    background: var(--primary);
+    color: #111;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+}
+
+.match-header-stage {
+    color: var(--texto-prin);
+    font-weight: 800;
+}
+
+.match-header-athlete {
+    color: var(--primary);
+    text-transform: uppercase;
+    font-weight: 900;
+}
+
+@keyframes headerPulse {
+    0%   { box-shadow: 0 0 8px rgba(255, 193, 7, 0.1); }
+    100% { box-shadow: 0 0 16px rgba(255, 193, 7, 0.25); }
+}
+
+/* Melhorias nos inputs e configurações do Modal de Competição */
+/* Fix: placeholder visível no tema dourado escuro */
+#modal-competicao input[type="text"] {
+    border-radius: 24px 0 0 24px !important;
+    border-right: none !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 2px solid var(--borda) !important;
+    font-weight: 800 !important;
+    padding-left: 18px !important;
+    color: #FFC107 !important;
+}
+
+#modal-competicao input[type="text"]::placeholder {
+    color: rgba(200, 208, 224, 0.6) !important;
+    opacity: 1;
+}
+
+#modal-competicao input[type="text"]:focus {
+    border-color: #FFC107 !important;
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2) !important;
+}
+
+#modal-competicao input[type="text"] + button.btn {
+    border-radius: 0 24px 24px 0 !important;
+    background: #FFC107 !important;
+    color: #111 !important;
+    border: 2px solid #FFC107 !important;
+    border-left: none !important;
+    box-shadow: none !important;
+    height: 48px;
+    margin: 0 !important;
+}
+
+/* Scroll interno sem vazar para o body — fix iOS Safari */
+#modal-competicao .modal-content {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+#modal-leaderboard .modal-content,
+#modal-stage-results .modal-content,
+#modal-sumula .modal-content,
+#modal-resultado-atleta .modal-content {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Grid de configuração de alvos no modal */
+#match-targets-config-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)) !important;
+    gap: 10px !important;
+    padding: 12px !important;
+}
+
+.target-config-btn {
+    min-height: 52px !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.target-config-btn:hover {
+    filter: brightness(1.2) !important;
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2) !important;
+}
+
+/* =========================================
+   🏆 MODO COMPETIÇÃO - THEMATIC GOLD DARK THEME
+========================================= */
+body.tab-match,
+body.match-mode-active {
+    --bg-fundo: #0d0f14;
+    --bg-caixas: #171a22;
+    --texto-prin: #FFC107;
+    /* Texto secundário mais legível em fundo escuro */
+    --texto-sec: #c8d0e0;
+    --borda: rgba(255, 193, 7, 0.18);
+    --primary: #FFC107;
+    --primary-glow: rgba(255, 193, 7, 0.2);
+    --bg-destaque: rgba(255, 193, 7, 0.05);
+    background-color: #0d0f14 !important;
+}
+
+body.tab-match .site-header,
+body.match-mode-active .site-header {
+    background: #171a22 !important;
+    border-bottom: 2px solid #FFC107 !important;
+    box-shadow: 0 4px 20px rgba(255, 193, 7, 0.15) !important;
+}
+
+body.tab-match .site-header h1,
+body.match-mode-active .site-header h1 {
+    color: #FFC107 !important;
+    text-shadow: 0 0 10px rgba(255, 193, 7, 0.3) !important;
+}
+
+body.tab-match .card,
+body.match-mode-active .card {
+    background: #171a22 !important;
+    border: 1px solid rgba(255, 193, 7, 0.25) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.tab-match .btn-select-modern,
+body.tab-match select,
+body.tab-match input[type="text"],
+body.tab-match input[type="number"],
+body.match-mode-active .btn-select-modern,
+body.match-mode-active select,
+body.match-mode-active input[type="text"],
+body.match-mode-active input[type="number"] {
+    background-color: #0d0f14 !important;
+    border: 1px solid rgba(255, 193, 7, 0.2) !important;
+    color: #FFC107 !important;
+}
+
+body.tab-match .header-nav-desktop,
+body.match-mode-active .header-nav-desktop {
+    border: 1px solid rgba(255, 193, 7, 0.3) !important;
+}
+
+body.tab-match th,
+body.match-mode-active th {
+    background: #0d0f14 !important;
+    color: #c8d0e0 !important;
+}
+
+/* =========================================
+   🏟️ PAINEL "CAMPEONATO EM ANDAMENTO" — Classe Dedicada
+========================================= */
+.match-live-panel {
+    background: rgba(255, 193, 7, 0.05);
+    border: 2px solid #FFC107;
+    border-radius: var(--radius-md);
+    padding: 18px 22px;
+    box-shadow: 0 8px 24px rgba(255, 193, 7, 0.15);
+    margin-bottom: 12px;
+}
+
+.match-live-panel__title {
+    color: #FFC107;
+    margin-bottom: 14px;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.match-live-panel__stats {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.match-live-stat {
+    text-align: center;
+    min-width: 100px;
+}
+
+.match-live-stat__label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #c8d0e0;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.match-live-stat__value {
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    font-weight: 900;
+    color: var(--texto-prin);
+    word-break: break-word;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.match-live-stat__value--gold {
+    color: #FFC107;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Barra de progresso de stage */
+.match-progress-wrap {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 193, 7, 0.15);
+}
+
+.match-progress-label {
+    font-size: 0.68rem;
+    color: #c8d0e0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+
+.match-progress-bar-bg {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.match-progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #FFC107, #FF8F00);
+    border-radius: 10px;
+    transition: width 0.5s var(--ease-smooth);
+    box-shadow: 0 0 8px rgba(255, 193, 7, 0.4);
+}
+
+/* =========================================
+   👥 SQUAD PROGRESS — Linhas de Atletas
+========================================= */
+#match-squad-progress {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.squad-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 14px;
+    border: 1px solid rgba(255, 193, 7, 0.1);
+    border-radius: 8px;
+    background: rgba(255, 193, 7, 0.03);
+    font-size: 0.88rem;
+    transition: background 0.2s, border-color 0.2s;
+    cursor: default;
+}
+
+.squad-row:hover {
+    background: rgba(255, 193, 7, 0.08);
+    border-color: rgba(255, 193, 7, 0.25);
+}
+
+.squad-row--active {
+    border-color: rgba(255, 193, 7, 0.45) !important;
+    background: rgba(255, 193, 7, 0.1) !important;
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.15);
+}
+
+.squad-row__name {
+    font-weight: 800;
+    color: var(--texto-prin);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 50%;
+}
+
+.squad-row__hf {
+    font-weight: 900;
+    color: #FFC107;
+    font-size: 0.95rem;
+    letter-spacing: -0.5px;
+}
+
+.squad-row__status {
+    font-size: 0.75rem;
+    color: #c8d0e0;
+    margin-left: 8px;
+    min-width: 50px;
+    text-align: right;
+}
+
+/* =========================================
+   🏅 LEADERBOARD — Estilo de Pódio
+========================================= */
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+.leaderboard-table th {
+    padding: 12px 10px;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #c8d0e0 !important;
+    border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+    position: sticky;
+    top: 0;
+    background: #0d0f14 !important;
+    z-index: 2;
+}
+
+.leaderboard-table td {
+    padding: 11px 10px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 193, 7, 0.08);
+    color: var(--texto-prin);
+    transition: background 0.2s;
+}
+
+.leaderboard-table tr:hover td {
+    background: rgba(255, 193, 7, 0.05);
+}
+
+/* Pódio — 1º, 2º e 3º Lugar */
+.leaderboard-row-1st td {
+    background: rgba(255, 215, 0, 0.12) !important;
+    font-weight: 900;
+    color: #FFD700 !important;
+}
+
+.leaderboard-row-2nd td {
+    background: rgba(192, 192, 192, 0.08) !important;
+    color: #C8C8C8 !important;
+}
+
+.leaderboard-row-3rd td {
+    background: rgba(205, 127, 50, 0.08) !important;
+    color: #CD7F32 !important;
+}
+
+.leaderboard-rank-icon {
+    font-size: 1.2rem;
+    display: inline-block;
+}
+
+.leaderboard-hf {
+    font-weight: 900;
+    font-size: 1rem;
+    letter-spacing: -0.5px;
+}
+
+/* =========================================
+   🧭 BOTTOM NAV — Indicador Especial Match Ativo
+========================================= */
+body.match-mode-active .bottom-nav .nav-item[onclick*="tab-match"],
+body.tab-match .bottom-nav .nav-item[onclick*="tab-match"] {
+    color: #FFC107 !important;
+    position: relative;
+}
+
+/* Ponto pulsante dourado no ícone Campeonato quando match está ativo */
+body.match-mode-active .bottom-nav .nav-item[onclick*="tab-match"]::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    right: calc(50% - 14px);
+    width: 7px;
+    height: 7px;
+    background: #FFC107;
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgba(255, 193, 7, 0.8);
+    animation: navPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes navPulse {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 4px rgba(255, 193, 7, 0.6); }
+    50%       { opacity: 0.7; transform: scale(1.4); box-shadow: 0 0 10px rgba(255, 193, 7, 0.9); }
+}
+
+/* Bottom nav fica dourada no match mode */
+body.tab-match .bottom-nav,
+body.match-mode-active .bottom-nav {
+    background: rgba(13, 15, 20, 0.9) !important;
+    border-top: 1px solid rgba(255, 193, 7, 0.2) !important;
+}
+
+/* =========================================
+   🎯 ESCONDER CONTROLE DE MATCH FORA DA ABA
+========================================= */
+/* Esconde o controle do match quando não na aba Match no desktop */
+body:not(.tab-match) #card-match-control {
+    display: none !important;
+}
+
+/* =========================================
+   📱 RESPONSIVIDADE — Match Mode Mobile
+========================================= */
+@media (max-width: 768px) {
+    .match-live-panel {
+        padding: 14px 16px;
+    }
+
+    .match-live-panel__title {
+        font-size: 0.95rem;
+    }
+
+    .match-live-stat__value {
+        max-width: 130px;
+    }
+
+    .squad-row {
+        padding: 8px 10px;
+        font-size: 0.82rem;
+    }
+
+    .leaderboard-table td,
+    .leaderboard-table th {
+        padding: 9px 6px !important;
+        font-size: 0.82rem !important;
+    }
+
+    #match-targets-config-grid {
+        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)) !important;
+        gap: 8px !important;
+    }
+}
+
+@media (max-width: 400px) {
+    .match-live-stat__value {
+        font-size: 1.2rem;
+        max-width: 110px;
+    }
+
+    .match-live-panel__stats {
+        gap: 8px;
+    }
+
+    .squad-row__name {
+        max-width: 45%;
+        font-size: 0.8rem;
+    }
+}
+

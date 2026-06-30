@@ -11,6 +11,8 @@ Preferences preferences;
 int myTargetId = 0; 
 bool isRegistered = false;
 
+uint8_t masterAddr[6] = {0};
+bool hasMasterAddr = false;
 
 // ---- PINS ----
 #define LED_R11_PIN 2  
@@ -40,13 +42,13 @@ bool isRegistered = false;
 #define MIN_INTERVALO_DISPARO_MS 100
 
 // --- PARÂMETROS DE DETECÇÃO ---
-#define N_MEDIA 20 
+#define N_MEDIA 20
 uint16_t bufferR[N_MEDIA];
 uint16_t bufferG[N_MEDIA];
 uint8_t  idxMedia = 0;
 float baselineR = 0;
 
-const int   MIN_DELTA_ABS = 3;
+const int   MIN_DELTA_ABS = 5;
 const float PROPORTIONAL_TOL = 0.3f;
 const float LASER_DOMINANCE = 1.035f;
 const int   WINDOW_PICO_MS = 20;
@@ -58,7 +60,9 @@ bool laserContinuo = false;
 bool capturandoPico = false;
 bool laserPresente = false;
 uint16_t picoEvento = 0;
-uint16_t picoLaser = 0; 
+uint16_t picoLaser = 0;
+uint16_t picoLaser2 = 0;
+int limiteCalib = 5; 
 unsigned long picoStartTime = 0;
 unsigned long lastShotMillis = 0;
 unsigned long startMillis = 0;
@@ -94,7 +98,10 @@ struct PendingShotTarget {
   uint32_t timeMs;
   unsigned long lastAttempt;
 };
-std::vector<PendingShotTarget> targetQueue;
+#define TARGET_QUEUE_SIZE 10
+PendingShotTarget targetQueue[TARGET_QUEUE_SIZE];
+volatile int targetQueueCount = 0;
+SemaphoreHandle_t queueMutex;
 
 typedef struct __attribute__((packed)) {
   uint8_t targetId;
@@ -126,151 +133,184 @@ static bool proporcional(float a, float b, float tol) {
 
 // RECEBIMENTO ESP-NOW
 void onESPNowRecv(const esp_now_recv_info *info, const uint8_t *data, int len) {
-  if (len != sizeof(TargetCommand)) return;
-  TargetCommand cmd;
-  memcpy(&cmd, data, sizeof(cmd)); 
+  
+  // 1. O SONAR: Imprime no painel tudo o que bate na antena do Alvo
+  Serial.printf("\n[RÁDIO] Pacote recebido! Tamanho: %d bytes\n", len);
 
+  // Trava de segurança contra lixo na rede
+  if (len != sizeof(TargetCommand)) {
+      Serial.println("[ERRO] Pacote ignorado. Tamanho incompatível.");
+      return;
+  }
+
+  // Salva o MAC do Master para responder com Unicast
+  if (!hasMasterAddr) {
+      memcpy(masterAddr, info->src_addr, 6);
+      hasMasterAddr = true;
+      esp_now_peer_info_t peer = {};
+      memcpy(peer.peer_addr, masterAddr, 6);
+      peer.channel = 0;
+      peer.encrypt = false;
+      if (!esp_now_is_peer_exist(masterAddr)) {
+          esp_now_add_peer(&peer);
+      }
+      Serial.println("Endereço MAC do Master salvo para Unicast!");
+  }
+
+  TargetCommand cmd;
+  memcpy(&cmd, data, sizeof(cmd));
+
+  // 2. RAIO-X DO COMANDO: Mostra exatamente o que o Master pediu
+  Serial.printf("[COMANDO] Para o Alvo: %d | Ação (Cmd): %d | Valor: %d\n", cmd.targetId, cmd.command, cmd.value);
+
+  // 3. Lógica de ACK e Registro (Intacta)
   if (cmd.command == CMD_REGISTER_OK) {
-      // 1. Lógica de Registro Inicial
       if (!isRegistered) {
           isRegistered = true;
-          myTargetId = cmd.value; 
+          myTargetId = cmd.value;
           Serial.printf("REGISTRADO! ID Atribuido: %d\n", myTargetId);
-          for(int i=0; i<3; i++){
-            digitalWrite(LED_A_PIN, HIGH); delay(50); digitalWrite(LED_A_PIN, LOW); delay(50);
-          }
       }
-
-      // 2. Lógica de ACK (Limpa a fila de disparos)
-      // Procuramos o evento pelo ID enviado no campo 'value' pelo Master
-      for (int i = 0; i < targetQueue.size(); i++) {
-          if (targetQueue[i].eventId == cmd.value) {
-              targetQueue.erase(targetQueue.begin() + i);
-              Serial.printf("ACK Recebido: Evento %d removido da fila.\n", cmd.value);
-              break;
+      if (xSemaphoreTake(queueMutex, portMAX_DELAY)) {
+          for (int i = 0; i < targetQueueCount; i++) {
+              if (targetQueue[i].eventId == cmd.value) {
+                  for (int j = i; j < targetQueueCount - 1; j++) {
+                      targetQueue[j] = targetQueue[j + 1];
+                  }
+                  targetQueueCount--;
+                  Serial.printf("ACK Recebido: Evento %d removido da fila.\n", cmd.value);
+                  break;
+              }
           }
+          xSemaphoreGive(queueMutex);
       }
-      return; // Agora o return acontece APÓS processar o registro E o ACK
+      return;
   }
 
-  switch (cmd.command) {
-
-    case CMD_LIGHT: ledEnabled = cmd.value;
-      if (!ledEnabled) { digitalWrite(LED_G_PIN, LOW); digitalWrite(LED_A_PIN, LOW); digitalWrite(LED_C_PIN, LOW); } break; 
-    
-    case CMD_SOUND: soundEnabled = cmd.value;
-      if (!soundEnabled) { digitalWrite(LED_R11_PIN, LOW); } break; 
-    
-    case CMD_CALIB: 
-      calibrating = true;
-      disparosCalib = 0; 
-      somaPicosCalib = 0;
+  // 4. A PORTA DE SEGURANÇA ESCANCARADA
+  // A Mágica aqui: Ele sempre obedece o 255 (Todos os Alvos), mesmo se o ID dele ainda estiver confuso!
+  if (cmd.targetId == 255 || (myTargetId > 0 && cmd.targetId == myTargetId)) {
       
+      switch (cmd.command) {
+          // ... (Aqui continua o seu código normal com case CMD_LIGHT, CMD_MODE_METAL, etc.)
+        case CMD_LIGHT: 
+            ledEnabled = cmd.value;
+            if (!ledEnabled) { digitalWrite(LED_G_PIN, LOW); digitalWrite(LED_A_PIN, LOW); digitalWrite(LED_C_PIN, LOW); } 
+            break; 
+        
+        case CMD_SOUND: 
+            soundEnabled = cmd.value;
+            if (!soundEnabled) { digitalWrite(LED_R11_PIN, LOW); } 
+            break; 
+        
+        case CMD_CALIB: 
+          calibrating = true;
+          disparosCalib = 0; 
+          somaPicosCalib = 0;
+          lastShotMillis = millis(); // Timeout timer init
+          if(cmd.value == 2) {
+            limiteCalib = 10;
+            Serial.println("modo calibração 10 disparos");
+          } else {
+            limiteCalib = 5;
+            Serial.println("modo calibração 5 disparos");
+          }
+          // Feedback não bloqueante para o callback
+          digitalWrite(LED_C_PIN, HIGH);
+          digitalWrite(LED_A_PIN, HIGH);
+          ledC_until = millis() + 100;
+          ledA_until = millis() + 100;
+          Serial.println("Modo Calibração Ativado");
+          break;
 
-      digitalWrite(LED_A_PIN, HIGH); delay(20); digitalWrite(LED_A_PIN, LOW); delay(20); digitalWrite(LED_C_PIN, HIGH); 
-      delay(20); digitalWrite(LED_C_PIN, LOW);
-      Serial.println("Modo Calibração Ativado");
-      break;
+        case CMD_DETECT: 
+          detecting = cmd.value; 
+          if(detecting) digitalWrite(LED_C_PIN, LOW);
+          break;
 
-   case CMD_DETECT: 
-      detecting = cmd.value; 
-      if(detecting) digitalWrite(LED_C_PIN, LOW);
-      break;
+        case CMD_RESET: 
+          lastShotMillis = 0;
+          startMillis = millis();
+          break;
 
-    case CMD_RESET: 
-      lastShotMillis = 0;
-      startMillis = millis();
-      break;
+        case CMD_SET_IR: 
+          modoFaixa = CMD_SET_IR; 
+          Serial.println("Modo Laser: Infravermelho (IR)");
+          break;
 
-    case CMD_SET_IR: 
-      modoFaixa = CMD_SET_IR; 
-      Serial.println("Modo Laser: Infravermelho (IR)");
-      break;
+        case CMD_SET_RED: 
+          modoFaixa = CMD_SET_RED; 
+          Serial.println("Modo Laser: Vermelho");
+          break;
 
-    case CMD_SET_RED: 
-      modoFaixa = CMD_SET_RED; 
-      Serial.println("Modo Laser: Vermelho");
-      break;
-
-   case CMD_SOU_EU:
-     
-      if (myTargetId > 0 && (cmd.targetId == myTargetId || cmd.targetId == 255)) {
+        case CMD_SOU_EU:
           identificarAlvo = true;
           digitalWrite(LED_A_PIN, HIGH);
-      }
-      break;
+          break;
 
-    case CMD_STOP_ID: 
-      
-      if (myTargetId > 0 && (cmd.targetId == myTargetId || cmd.targetId == 255)) {
+        case CMD_STOP_ID: 
           digitalWrite(LED_A_PIN, LOW);
           Serial.println("Identificação Desligada");
-      }
-      break;
-case CMD_MODE_METAL:
-    isMetallic = true;
-    preferences.putBool("isMetallic", true); // Salva na Flash
-    Serial.println("Modo Metálico Salvo");
-    break;
+          break;
 
-case CMD_MODE_IPSC:
-    isMetallic = false;
-    preferences.putBool("isMetallic", false); // Salva na Flash
-    Serial.println("Modo IPSC Salvo");
-    break;
-
-case CMD_REGISTER_OK: // Usaremos este comando também como ACK de disparo
-    // Se recebermos um OK com o eventID correto, removemos da fila
-    for (int i = 0; i < targetQueue.size(); i++) {
-        if (targetQueue[i].eventId == cmd.value) { // Usando cmd.value como ID do evento
-            targetQueue.erase(targetQueue.begin() + i);
+        case CMD_MODE_METAL:
+            isMetallic = true;
+            preferences.putBool("isMetallic", true);
+            Serial.println("Modo Metálico Salvo");
             break;
-  }
+
+        case CMD_MODE_IPSC:
+            isMetallic = false;
+            preferences.putBool("isMetallic", false); 
+            Serial.println("Modo IPSC Salvo");
+            break;
+      }
+  } // <-- Fim da porta de segurança
+
+  // O ACK CMD_REGISTER_OK foi removido daqui pois já é retornado e tratado com 'return;' na linha 148, e era um código morto que usava std::vector.
 }
-  }
-}
+
+
+
+ 
+
 
 void sendShot(char zone, uint16_t split, uint32_t time) {
   PendingShotTarget ps = {eventId, zone, split, time, 0};
-    targetQueue.push_back(ps);
+  
+  if (xSemaphoreTake(queueMutex, portMAX_DELAY)) {
+      if (targetQueueCount < TARGET_QUEUE_SIZE) {
+          targetQueue[targetQueueCount++] = ps;
+      } else {
+          for (int i = 1; i < TARGET_QUEUE_SIZE; i++) {
+              targetQueue[i - 1] = targetQueue[i];
+          }
+          targetQueue[TARGET_QUEUE_SIZE - 1] = ps;
+      }
+      xSemaphoreGive(queueMutex);
+  }
 
-  typedef struct __attribute__((packed)) {
-      uint8_t  targetId;
-      uint32_t eventId;
-      char     zone;
-      uint16_t splitMs;
-      uint32_t timeMs;
-  } ShotEventMaster;
-
-  ShotEventMaster ev;
+  ShotEvent ev; // Usa a struct global limpa
   ev.targetId = (uint8_t)myTargetId;
   ev.eventId = eventId;
   ev.zone = zone;
   ev.splitMs = split;
   ev.timeMs = time;
 
-  esp_now_send(broadcastAddr, (uint8_t*)&ev, sizeof(ev));
+  uint8_t* destAddr = hasMasterAddr ? masterAddr : broadcastAddr;
+  esp_now_send(destAddr, (uint8_t*)&ev, sizeof(ev));
 }
 
 // Função de Handshake (Registro)
 void sendHandshake() {
-  typedef struct __attribute__((packed)) {
-      uint8_t  targetId;
-      uint32_t eventId;
-      char     zone;
-      uint16_t splitMs;
-      uint32_t timeMs;
-  } ShotEventMaster;
-
-  ShotEventMaster ev;
-  ev.targetId = 0; // 0 = Desconhecido
+  ShotEvent ev; 
+  ev.targetId = 0;      
   ev.eventId  = 0;
-  ev.zone     = 'H'; // H de Hello/Handshake
+  ev.zone     = 'H';     
   ev.splitMs  = 0;
   ev.timeMs   = millis();
 
   esp_now_send(broadcastAddr, (uint8_t*)&ev, sizeof(ev));
-  Serial.println("Enviando Pedido de Registro (Handshake)...");
+  //Serial.println("Enviando Pedido de Registro (Handshake)...");
 }
 
 uint16_t media_movel(uint16_t *buffer, uint16_t novoValor) {
@@ -282,6 +322,7 @@ uint16_t media_movel(uint16_t *buffer, uint16_t novoValor) {
 
 void setup() {
   Serial.begin(115200); 
+  queueMutex = xSemaphoreCreateMutex();
   Wire.begin(); 
   tcs.begin(); 
   
@@ -347,6 +388,14 @@ void loop() {
     }
   }
   // ---------------------------
+  
+  // Timeout de calibração (120s inatividade)
+  if (calibrating && (now - lastShotMillis > 120000)) {
+      calibrating = false;
+      Serial.println("Calibração cancelada por inatividade (Timeout 120s)");
+      digitalWrite(LED_C_PIN, LOW);
+      digitalWrite(LED_A_PIN, LOW);
+  }
 
   if (!detecting) { 
     digitalWrite(LED_G_PIN, LOW);
@@ -356,8 +405,15 @@ void loop() {
   }
 
   uint16_t r, g, b, c;
-  tcs.getRawData(&r, &g, &b, &c);
-  idxMedia = (idxMedia + 1) % N_MEDIA; 
+  tcs.getRawData(&r, &g, &b, &c); 
+  
+  // ==========================================
+  // INCREMENTO EDGE IMPULSE (DATA LOGGER)
+  
+  //Serial.printf("%d,%d,%d,%d\n", r, g, b, c); 
+  // ==========================================
+
+  idxMedia = (idxMedia + 1) % N_MEDIA;
 
   uint16_t mediaR_val = (!laserPresente && !capturandoPico) ?
     media_movel(bufferR, r) : bufferR[(idxMedia - 1 + N_MEDIA) % N_MEDIA]; 
@@ -404,34 +460,82 @@ void loop() {
       capturandoPico = false;
       
       if (calibrating) {
-          digitalWrite(LED_A_PIN, LOW);digitalWrite(LED_C_PIN, LOW);
-          disparosCalib++;
-          somaPicosCalib += picoEvento;
-          Serial.printf("Disparo Calib %d/5 - Pico: %d\n", disparosCalib, picoEvento);
-          digitalWrite(LED_A_PIN, HIGH);
-          delay(50); digitalWrite(LED_A_PIN, LOW);
-          
-          if (disparosCalib >= 5) {
-              picoLaser = somaPicosCalib / 5;
-              calibrating = false;
-              
-              // [Alteração 3] Salva o novo valor na memória flash
-              preferences.putUInt("picoLaser", picoLaser);
-              Serial.println("Calibração Salva na Memória!");
-              
-              digitalWrite(LED_C_PIN, LOW);
-              Serial.printf("Calibração Finalizada. Pico Referência: %d\n", picoLaser);
-          }
-      } else {
+            digitalWrite(LED_A_PIN, LOW); digitalWrite(LED_C_PIN, LOW);
+            disparosCalib++;
+            somaPicosCalib += picoEvento;
+            lastShotMillis = now;
+            
+            Serial.printf("Disparo Calib %d/%d - Pico: %d\n", disparosCalib, limiteCalib, picoEvento);
+            
+            digitalWrite(LED_A_PIN, HIGH);
+            delay(50); digitalWrite(LED_A_PIN, LOW);
+            
+            // --- LÓGICA MODO 5 DISPAROS (APENAS ALFA) ---
+            if (limiteCalib == 5) {
+                if (disparosCalib >= 5) {
+                    picoLaser = somaPicosCalib / 5;
+                    calibrating = false;
+                    
+                    preferences.putUInt("picoLaser", picoLaser);
+                    Serial.println("Calibração Rápida Salva na Memória!");
+                    
+                    digitalWrite(LED_C_PIN, LOW);
+                    Serial.printf("Calibração Finalizada. Pico Referência (Alfa): %d\n", picoLaser);
+                }
+            } 
+            // --- LÓGICA MODO 10 DISPAROS (ALFA E CHARLIE) ---
+            else if (limiteCalib == 10) {
+                // Chegou na metade (5 tiros) - Salva Alfa e avisa para mudar
+                if (disparosCalib == 5) {
+                    picoLaser = somaPicosCalib / 5;
+                    somaPicosCalib = 0; // Zera a soma para medir o Charlie agora
+                    
+                    Serial.printf("Faixa 1 (Alfa) calibrada: %d. Atire mais 5x para o Charlie.\n", picoLaser);
+                    
+                    // Pisca o LED C sem bloquear para avisar que mudou de fase
+                    digitalWrite(LED_C_PIN, HIGH);
+                    ledC_until = now + 600;
+                } 
+                // Chegou no final (10 tiros) - Salva Charlie e encerra
+                else if (disparosCalib >= 10) {
+                    picoLaser2 = somaPicosCalib / 5;
+                    calibrating = false;
+                    
+                    preferences.putUInt("picoLaser", picoLaser);
+                    preferences.putUInt("picoLaser2", picoLaser2);
+                    
+                    Serial.println("Calibração Avançada Salva na Memória!");
+                    digitalWrite(LED_C_PIN, LOW);
+                    Serial.printf("Calibração Finalizada. Alfa: %d | Charlie: %d\n", picoLaser, picoLaser2);
+                }
+            }
+       } else {
           float f2, f3;
-          if (modoFaixa == CMD_SET_IR) {
-              f2 = baselineR + (picoLaser - baselineR) * 0.15f;
-              f3 = baselineR + (picoLaser - baselineR) * 0.38f;
+
+          // --- LÓGICA DE FAIXAS DINÂMICAS ---
+          // Verifica se a calibração atual foi a Avançada (10 tiros) ou a Rápida (5 tiros)
+          if (limiteCalib == 10) {
+              // Regra para 10 disparos: Usa os dois picos medidos (Alfa e Charlie)
+              float deltaAlfa = picoLaser - baselineR;
+              float deltaCharlie = picoLaser2 - baselineR;
+
+              // f3 (Alfa) = 20% do valor calibrado no centro (Margem de segurança para o A)
+              f3 = baselineR + (deltaAlfa * 0.20f);
+              // f2 (Charlie) = 60% do valor calibrado na borda (Margem para o C)
+              f2 = baselineR + (deltaCharlie * 0.60f);
+              
           } else {
-              f2 = baselineR + (picoLaser - baselineR) * 0.04f;
-              f3 = baselineR + (picoLaser - baselineR) * 0.20f;
+              // Regra para 5 disparos: Usa apenas o pico principal (Alfa) e o tipo de Laser
+              if (modoFaixa == CMD_SET_IR) {
+                  f2 = baselineR + (picoLaser - baselineR) * 0.15f;
+                  f3 = baselineR + (picoLaser - baselineR) * 0.38f;
+              } else {
+                  f2 = baselineR + (picoLaser - baselineR) * 0.04f;
+                  f3 = baselineR + (picoLaser - baselineR) * 0.20f;
+              }
           }
 
+          // Classificação Final da Zona do Disparo
           char zona;
           if (picoEvento >= f3) zona = 'A';
           else if (picoEvento >= f2) zona = 'C';
@@ -463,14 +567,19 @@ void loop() {
   } 
   static unsigned long lastRetry = 0;
   if (now - lastRetry > 200) {
-    for (int i = 0; i < targetQueue.size(); i++) {
-        ShotEvent ev;
-        ev.targetId = (uint8_t)myTargetId;
-        ev.eventId  = targetQueue[i].eventId;
-        ev.zone     = targetQueue[i].zone;
-        ev.splitMs  = targetQueue[i].splitMs;
-        ev.timeMs   = targetQueue[i].timeMs;
-        esp_now_send(broadcastAddr, (uint8_t*)&ev, sizeof(ev));
+    if (xSemaphoreTake(queueMutex, portMAX_DELAY)) {
+        for (int i = 0; i < targetQueueCount; i++) {
+            ShotEvent ev;
+            ev.targetId = (uint8_t)myTargetId;
+            ev.eventId  = targetQueue[i].eventId;
+            ev.zone     = targetQueue[i].zone;
+            ev.splitMs  = targetQueue[i].splitMs;
+            ev.timeMs   = targetQueue[i].timeMs;
+            
+            uint8_t* destAddr = hasMasterAddr ? masterAddr : broadcastAddr;
+            esp_now_send(destAddr, (uint8_t*)&ev, sizeof(ev));
+        }
+        xSemaphoreGive(queueMutex);
     }
     lastRetry = now;
   }

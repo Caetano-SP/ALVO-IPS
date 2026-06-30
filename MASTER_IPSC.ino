@@ -13,6 +13,58 @@ const byte DNS_PORT = 53;
 DNSServer dnsServer;
 #define WDT_TIMEOUT 3
 
+// ================= MACROS DE CONFIGURAÇÃO =================
+#define MAX_TARGETS 10
+#define SHOT_QUEUE_SIZE 10
+#define WS_QUEUE_SIZE 20
+#define WS_MSG_LEN 128
+#define WS_BIN_QUEUE_SIZE 64
+
+// ================= STRUCTS E TIPOS =================
+struct TargetEntry {
+  bool registered = false;
+  uint8_t mac[6];
+  uint32_t lastEventId = 0;
+};
+
+struct PendingShot {
+  uint32_t seqId;
+  char zone;
+  uint16_t splitMs;
+  uint32_t timeMs;
+  int targetId;
+  unsigned long lastSent;
+};
+
+struct WSMessage {
+  char data[WS_MSG_LEN];
+};
+
+#pragma pack(push, 1)
+struct WSBinaryShot {
+    uint8_t type;    // 0x01 para Shot
+    uint32_t seqId;
+    char zone;
+    uint16_t splitMs;
+    uint32_t timeMs;
+    uint8_t targetId;
+};
+
+typedef struct __attribute__((packed)) {
+  uint8_t targetId;
+  uint32_t eventId;
+  char zone;
+  uint16_t splitMs;
+  uint32_t timeMs;
+} ShotEvent;
+
+typedef struct __attribute__((packed)) {
+  uint8_t targetId;
+  uint8_t command;
+  uint8_t value;
+} TargetCommand;
+#pragma pack(pop)
+
 // ================= COMANDOS =================
 #define CMD_LIGHT 1
 #define CMD_SOUND 2
@@ -35,11 +87,6 @@ WebSocketsServer webSocket(81);
 bool soundEnabled = true;
 bool lightEnabled = true;
 
-struct TargetEntry {
-  bool registered = false;
-  uint8_t mac[6];
-};
-
 TargetEntry targets[MAX_TARGETS];
 uint8_t broadcastMAC[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
@@ -48,83 +95,109 @@ uint16_t scoreA = 0, scoreC = 0, scoreD = 0;
 char lastZone = '-';
 
 // ================= STRUCT EVENTO ===========
-struct PendingShot {
-  uint32_t seqId;
-  char zone;
-  uint16_t splitMs;
-  uint32_t timeMs;
-  int targetId;
-  unsigned long lastSent;
-};
-
-std::vector<PendingShot> shotQueue;
+PendingShot shotQueue[SHOT_QUEUE_SIZE];
+volatile int shotQueueCount = 0;
 uint32_t nextSeqId = 1;
 bool isRunning = false;
 
 // ================= CHAVES DE SEGURANÇA (MUTEX) ===========
 SemaphoreHandle_t queueMutex;  
-SemaphoreHandle_t wsMutex;     
+SemaphoreHandle_t wsMutex;
 
+WSMessage wsOutQueue[WS_QUEUE_SIZE];
+volatile int wsQueueHead = 0;
+volatile int wsQueueTail = 0;
 
-std::vector<String> wsOutQueue;
-
-
-void sendWS(String msg) {
-  if (webSocket.connectedClients() > 0 && wsOutQueue.size() < 10) {
-   
-    if (xSemaphoreTake(wsMutex, 0)) {
-      wsOutQueue.push_back(msg);
+void sendWS(const char* msg) {
+  if (webSocket.connectedClients() > 0) {
+    if (xSemaphoreTake(wsMutex, pdMS_TO_TICKS(10))) {
+      int nextHead = (wsQueueHead + 1) % WS_QUEUE_SIZE;
+      if (nextHead == wsQueueTail) {
+         wsQueueTail = (wsQueueTail + 1) % WS_QUEUE_SIZE;
+      }
+      strlcpy(wsOutQueue[wsQueueHead].data, msg, WS_MSG_LEN);
+      wsQueueHead = nextHead;
       xSemaphoreGive(wsMutex);
-    }
-  } else if (wsOutQueue.size() >= 10) {
- 
-    if (xSemaphoreTake(wsMutex, 0)) {
-      wsOutQueue.erase(wsOutQueue.begin());
-      wsOutQueue.push_back(msg);
-      xSemaphoreGive(wsMutex);
+    } else {
+      Serial.println("ERRO: Mutex WS travado! Mensagem descartada.");
     }
   }
 }
-typedef struct __attribute__((packed)) {
-  uint8_t targetId;
-  uint32_t eventId;
-  char zone;
-  uint16_t splitMs;
-  uint32_t timeMs;
-} ShotEvent;
 
-typedef struct __attribute__((packed)) {
-  uint8_t targetId;
-  uint8_t command;
-  uint8_t value;
-} TargetCommand;
+WSBinaryShot wsBinQueue[WS_BIN_QUEUE_SIZE];
+volatile int wsBinHead = 0;
+volatile int wsBinTail = 0;
+
+void sendWSBin(const WSBinaryShot& payload) {
+    if (webSocket.connectedClients() > 0) {
+        if (xSemaphoreTake(wsMutex, pdMS_TO_TICKS(10))) {
+            wsBinQueue[wsBinHead] = payload;
+            wsBinHead = (wsBinHead + 1) % WS_BIN_QUEUE_SIZE;
+            if (wsBinHead == wsBinTail) wsBinTail = (wsBinTail + 1) % WS_BIN_QUEUE_SIZE;
+            xSemaphoreGive(wsMutex);
+        }
+    }
+}
 // --- FUNÇÕES DE APOIO ---
-float lerTensaoBateria() {
-  int leitura = analogRead(34); 
-  
-  float tensaoNoPino = (leitura / 4095.0) * 3.3;
-  
- float fatorDivisor = 2.0; 
-  
-  float tensaoReal = tensaoNoPino * fatorDivisor;
-  
-  return tensaoReal;
-}
-// --- HANDLERS (LITTLEFS + CACHE) ---
-void handleRoot() {
-  File file = LittleFS.open("/index.html", "r");
-  if (!file) { server.send(404, "text/plain", "Falta index.html"); return; }
-  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  server.streamFile(file, "text/html");
-  file.close(); //
+
+// ===================== SERVIDOR DE ARQUIVOS ESTÁTICOS COM GZIP E CACHE =====================
+const char* getContentType(const String& filename) {
+  if (server.hasArg("download")) return "application/octet-stream";
+  if (filename.endsWith(".html")) return "text/html";
+  if (filename.endsWith(".css")) return "text/css";
+  if (filename.endsWith(".js")) return "application/javascript";
+  if (filename.endsWith(".png")) return "image/png";
+  if (filename.endsWith(".gif")) return "image/gif";
+  if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) return "image/jpeg";
+  if (filename.endsWith(".ico")) return "image/x-icon";
+  if (filename.endsWith(".xml")) return "text/xml";
+  if (filename.endsWith(".pdf")) return "application/x-pdf";
+  if (filename.endsWith(".zip")) return "application/x-zip";
+  if (filename.endsWith(".json")) return "application/json";
+  return "text/plain";
 }
 
-void handleJS() {
-  File file = LittleFS.open("/script.js", "r");
-  if (!file) { server.send(404, "text/plain", "Falta script.js"); return; }
-  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  server.streamFile(file, "application/javascript");
-  file.close(); //
+bool handleFileRead(const String& pathOriginal) {
+  String path = pathOriginal;
+  if (path.endsWith("/")) path += "index.html";
+
+  const char* contentType = getContentType(path);
+  String pathWithGz = path + ".gz";
+
+  bool clientAcceptsGzip = false;
+  if (server.hasHeader("Accept-Encoding") && server.header("Accept-Encoding").indexOf("gzip") != -1) {
+    clientAcceptsGzip = true;
+  }
+
+  if (clientAcceptsGzip && LittleFS.exists(pathWithGz)) {
+    File file = LittleFS.open(pathWithGz, "r");
+    if (path.indexOf("index.html") != -1) {
+      server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      server.sendHeader("Pragma", "no-cache");
+      server.sendHeader("Expires", "0");
+    } else {
+      server.sendHeader("Cache-Control", "public, max-age=31536000");
+    }
+    server.client().setNoDelay(true);
+    server.streamFile(file, contentType);
+    file.close();
+    return true;
+  } 
+  else if (LittleFS.exists(path)) {
+    File file = LittleFS.open(path, "r");
+    if (path.indexOf("index.html") != -1) {
+      server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      server.sendHeader("Pragma", "no-cache");
+      server.sendHeader("Expires", "0");
+    } else {
+      server.sendHeader("Cache-Control", "public, max-age=31536000");
+    }
+    server.client().setNoDelay(true);
+    server.streamFile(file, contentType);
+    file.close();
+    return true;
+  }
+  return false;
 }
 // ================= ENVIO COMANDO =================
 void sendCommand(uint8_t targetId, uint8_t cmd, uint8_t val) {
@@ -165,12 +238,12 @@ void handleCmd() {
   if (server.hasArg("detect")) {
     uint8_t detectVal = server.arg("detect").toInt();
     isRunning = (detectVal == 1);
-    if (!isRunning) {
+    if (isRunning) {
+      // Limpa a fila somente ao iniciar uma nova rodada para evitar perda de disparos pendentes no stop
       if (xSemaphoreTake(queueMutex, portMAX_DELAY)) {
-        shotQueue.clear();
+        shotQueueCount = 0;
         xSemaphoreGive(queueMutex);
       }
-    } else {
       sendCommand(target, CMD_DETECT, 1);
     }
   }
@@ -205,7 +278,8 @@ void handleCmd() {
   }
 
   if (server.hasArg("calib")) {
-    sendCommand(target, CMD_CALIB, 1);
+    uint8_t calibVal = server.arg("calib").toInt();
+    sendCommand(target, CMD_CALIB, calibVal);
     if (server.hasArg("laserMode")) {
       uint8_t mode = server.arg("laserMode").toInt();
       sendCommand(target, mode, 1);
@@ -240,63 +314,58 @@ void onRecv(const esp_now_recv_info *info, const uint8_t *data, int len) {
     }
   }
 
-  // 2. DISPARA O ACK IMEDIATAMENTE (FURA-FILA)
-  if (slot >= 0) {
-    TargetCommand ack;
-    ack.targetId = slot + 1; 
-    ack.command = CMD_REGISTER_OK; 
-    ack.value = (ev.zone == 'H') ? (slot + 1) : ev.eventId; 
-    esp_now_send(info->src_addr, (uint8_t *)&ack, sizeof(ack)); 
-  }
-  if (ev.zone == 'H') {
-    if (slot < 0) {
-      for (int i = 0; i < MAX_TARGETS; i++) {
-        if (!targets[i].registered) {
-          memcpy(targets[i].mac, info->src_addr, 6);
-          targets[i].registered = true;
-          slot = i;
-
-          esp_now_peer_info_t peer = {};
-          memcpy(peer.peer_addr, info->src_addr, 6);
-          peer.channel = WIFI_CHANNEL;
-          peer.encrypt = false;
-
-          if (!esp_now_is_peer_exist(info->src_addr)) {
-            esp_now_add_peer(&peer);
-          }
-
-          char syncBuf[64];
-          sprintf(syncBuf, "{\"type\":\"new_target\",\"id\":%d}", slot + 1);
-          sendWS(String(syncBuf));  // <-- ENVIO SEGURO
-          break;
-        }
-      }
-    }
-    return;
-  }
-
-
+  // 2. CADASTRO DINÂMICO SE NÃO REGISTRADO (Com interface WIFI_IF_AP explícita)
   if (slot < 0) {
     for (int i = 0; i < MAX_TARGETS; i++) {
       if (!targets[i].registered) {
         memcpy(targets[i].mac, info->src_addr, 6);
         targets[i].registered = true;
+        targets[i].lastEventId = 0; // Inicializa ID de evento
         slot = i;
 
         esp_now_peer_info_t peer = {};
         memcpy(peer.peer_addr, info->src_addr, 6);
         peer.channel = WIFI_CHANNEL;
         peer.encrypt = false;
+        peer.ifidx = WIFI_IF_AP; // 🔥 CORREÇÃO CRÍTICA: Força o uso da interface AP!
+
         if (!esp_now_is_peer_exist(info->src_addr)) {
           esp_now_add_peer(&peer);
+        }
+
+        // Se for pacote de pareamento ("H"), notifica o frontend imediatamente
+        if (ev.zone == 'H') {
+          char syncBuf[64];
+          sprintf(syncBuf, "{\"type\":\"new_target\",\"id\":%d}", slot + 1);
+          sendWS(syncBuf); 
         }
         break;
       }
     }
   }
 
-  if (slot < 0) return;
+  if (slot < 0) return; // Limite máximo de alvos excedido
 
+  // 3. ENVIO IMEDIATO DO ACK (Apenas uma vez)
+  TargetCommand ack;
+  ack.targetId = slot + 1; 
+  ack.command = CMD_REGISTER_OK; 
+  ack.value = (ev.zone == 'H') ? (slot + 1) : ev.eventId; 
+  esp_now_send(info->src_addr, (uint8_t *)&ack, sizeof(ack)); 
+
+  // Se for apenas pacote de pareamento/batimento cardíaco, encerra por aqui
+  if (ev.zone == 'H') {
+    return;
+  }
+
+  // 4. FILTRO DE DUPLICADOS (Evita processar a mesma rajada/jitter)
+  if (ev.eventId == targets[slot].lastEventId) {
+    Serial.printf("Aviso: Disparo duplicado detectado no Alvo %d (ID Evento: %u). Ignorando, mas ACK reenviado.\n", slot + 1, ev.eventId);
+    return; 
+  }
+  targets[slot].lastEventId = ev.eventId; // Atualiza o último evento processado
+
+  // 5. ATUALIZAÇÃO DE SCORES E TELEMETRIA
   if (ev.zone == 'A') scoreA++;
   if (ev.zone == 'C') scoreC++;
   if (ev.zone == 'D') scoreD++;
@@ -304,56 +373,63 @@ void onRecv(const esp_now_recv_info *info, const uint8_t *data, int len) {
 
   char buf[128];
   sprintf(buf, "{\"type\":\"score\",\"A\":%u,\"C\":%u,\"D\":%u,\"last\":\"%c\"}", scoreA, scoreC, scoreD, lastZone);
-  sendWS(String(buf));  // <-- ENVIO SEGURO
+  sendWS(buf);  
 
   int finalID = (ev.targetId > 0) ? ev.targetId : (slot + 1);
-  TargetCommand ack;
-  ack.targetId = slot + 1;
-  ack.command = CMD_REGISTER_OK;
-  ack.value = ev.eventId;  // Devolve o ID do evento como confirmação
-  esp_now_send(info->src_addr, (uint8_t *)&ack, sizeof(ack));
+
   if (isRunning) {
     PendingShot ps;
     ps.seqId = nextSeqId++;
     ps.zone = ev.zone;
     ps.splitMs = ev.splitMs;
-    ps.timeMs = ev.timeMs;  // Vem da estrutura ShotEvent recebida
+    ps.timeMs = ev.timeMs;  
     ps.targetId = finalID;
     ps.lastSent = 0;
 
     if (xSemaphoreTake(queueMutex, portMAX_DELAY)) {
-      // Procura a posição correta para manter a ordem cronológica
-      auto it = shotQueue.begin();
-      while (it != shotQueue.end() && it->timeMs < ps.timeMs) {
-        it++;
-      }
-      shotQueue.insert(it, ps);  // Insere na ordem correta, não apenas no fim
-      if (shotQueue.size() > 10) {
-        shotQueue.erase(shotQueue.begin());  // Apaga o tiro mais velho (fantasma)
-        Serial.println("Aviso: Fila de tiros lotada! Descartando mais antigos.");
+      if (shotQueueCount < SHOT_QUEUE_SIZE) {
+         shotQueue[shotQueueCount++] = ps;
+         for(int k = shotQueueCount - 1; k > 0; k--) {
+            if(shotQueue[k].timeMs < shotQueue[k-1].timeMs) {
+               PendingShot temp = shotQueue[k];
+               shotQueue[k] = shotQueue[k-1];
+               shotQueue[k-1] = temp;
+            } else break;
+         }
+      } else {
+         for(int k=1; k<SHOT_QUEUE_SIZE; k++) {
+            shotQueue[k-1] = shotQueue[k];
+         }
+         shotQueue[SHOT_QUEUE_SIZE-1] = ps;
+         Serial.println("Aviso: Fila de tiros lotada! Descartando mais antigos.");
       }
       xSemaphoreGive(queueMutex);
     }
   } else {
-    // Caso o cronômetro não esteja rodando, envia direto (tempo real/treino livre)
-    char buf2[128];
-    sprintf(buf2, "{\"type\":\"shot\",\"zone\":\"%c\",\"split\":%u,\"target\":%d,\"time\":%u}",
-            ev.zone, ev.splitMs, finalID, ev.timeMs);
-    sendWS(String(buf2));
+    WSBinaryShot binMsg;
+    binMsg.type = 1;
+    binMsg.seqId = 0;
+    binMsg.zone = ev.zone;
+    binMsg.splitMs = ev.splitMs;
+    binMsg.timeMs = ev.timeMs;
+    binMsg.targetId = finalID;
+    sendWSBin(binMsg);
   }
 }
 
 // ================= WEBSOCKET (Recebe comandos do site) =================
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
   if (type == WStype_TEXT) {
-    String msg = (char *)payload;
-    if (msg.startsWith("ACK:")) {
-      uint32_t ackSeq = msg.substring(4).toInt();
+    if (strncmp((char *)payload, "ACK:", 4) == 0) {
+      uint32_t ackSeq = atoi((char *)payload + 4);
 
       if (xSemaphoreTake(queueMutex, portMAX_DELAY)) {
-        for (int i = 0; i < shotQueue.size(); i++) {
+        for (int i = 0; i < shotQueueCount; i++) {
           if (shotQueue[i].seqId == ackSeq) {
-            shotQueue.erase(shotQueue.begin() + i);
+            for(int j = i; j < shotQueueCount - 1; j++) {
+               shotQueue[j] = shotQueue[j+1];
+            }
+            shotQueueCount--;
             break;
           }
         }
@@ -369,13 +445,17 @@ void processQueue() {
   int enviosNesteCiclo = 0;  
 
   if (xSemaphoreTake(queueMutex, portMAX_DELAY)) {
-    for (int i = 0; i < shotQueue.size() && enviosNesteCiclo < 2; i++) {  // Limita a 2 por vez
+    for (int i = 0; i < shotQueueCount && enviosNesteCiclo < 2; i++) {  // Limita a 2 por vez
       // Aumentado o intervalo de reenvio para 400ms para não inundar o celular
       if (currentMillis - shotQueue[i].lastSent > 400) {
-        char buf[128];
-        sprintf(buf, "{\"type\":\"shot\",\"seq\":%u,\"zone\":\"%c\",\"split\":%u,\"target\":%d,\"time\":%u}",
-                shotQueue[i].seqId, shotQueue[i].zone, shotQueue[i].splitMs, shotQueue[i].targetId, shotQueue[i].timeMs);
-        sendWS(String(buf));
+        WSBinaryShot binMsg;
+        binMsg.type = 1;
+        binMsg.seqId = shotQueue[i].seqId;
+        binMsg.zone = shotQueue[i].zone;
+        binMsg.splitMs = shotQueue[i].splitMs;
+        binMsg.timeMs = shotQueue[i].timeMs;
+        binMsg.targetId = shotQueue[i].targetId;
+        sendWSBin(binMsg);
         shotQueue[i].lastSent = currentMillis;
         enviosNesteCiclo++;
       }
@@ -388,22 +468,37 @@ void webTask(void *pvParameters) {
   for (;;) {
     server.handleClient();
     webSocket.loop();
+    dnsServer.processNextRequest();
 
-    String msgToSend = "";
+    bool hasData = false;
+    WSMessage txtMsg;
+    bool hasBin = false;
+    WSBinaryShot binMsg;
 
-    if (xSemaphoreTake(wsMutex, portMAX_DELAY)) {
-      if (wsOutQueue.size() > 0) {
-        msgToSend = wsOutQueue[0];
-        wsOutQueue.erase(wsOutQueue.begin());
+    if (xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5))) {
+      if (wsQueueHead != wsQueueTail) {
+        memcpy(&txtMsg, (void*)&wsOutQueue[wsQueueTail], sizeof(WSMessage));
+        wsQueueTail = (wsQueueTail + 1) % WS_QUEUE_SIZE;
+        hasData = true;
       }
-      xSemaphoreGive(wsMutex);  // <-- Chave liberada! O Rádio Wi-Fi está livre.
+      if (wsBinHead != wsBinTail) {
+        memcpy(&binMsg, (void*)&wsBinQueue[wsBinTail], sizeof(WSBinaryShot));
+        wsBinTail = (wsBinTail + 1) % WS_BIN_QUEUE_SIZE;
+        hasBin = true;
+      }
+      xSemaphoreGive(wsMutex); 
     }
 
-
-    if (msgToSend != "") {
-      webSocket.broadcastTXT(msgToSend.c_str());
-    } else {
-      vTaskDelay(pdMS_TO_TICKS(30));  
+    if (hasData) {
+      webSocket.broadcastTXT(txtMsg.data);
+      vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    if (hasBin) {
+      webSocket.broadcastBIN((uint8_t*)&binMsg, sizeof(WSBinaryShot));
+      vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    if (!hasData && !hasBin) {
+      vTaskDelay(pdMS_TO_TICKS(10));  
     }
   }
 }
@@ -458,39 +553,16 @@ esp_task_wdt_config_t twdt_config = {
 
 
 
-  server.serveStatic("/style.css", LittleFS, "/style.css");
-  server.on("/script.js", []() {
-  File file = LittleFS.open("/script.js", "r");
-  if (!file) {
-    server.send(404, "text/plain", "Arquivo não encontrado");
-    return;
-  }
+  const char* headerkeys[] = {"Accept-Encoding"};
+  size_t headerkeyssize = sizeof(headerkeys) / sizeof(char*);
+  server.collectHeaders(headerkeys, headerkeyssize);
 
-  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  server.sendHeader("Pragma", "no-cache");
-  server.sendHeader("Expires", "-1");
-  
-  server.streamFile(file, "application/javascript");
-  file.close();
-});
-  server.serveStatic("/chart.js", LittleFS, "/chart.js");
-  server.on("/", HTTP_GET, []() {
-    server.client().setNoDelay(true);  // <-- ACELERAÇÃO TCP
-    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    server.sendHeader("Pragma", "no-cache");
-    server.sendHeader("Expires", "-1");
+  server.on("/", []() {
+    if (!handleFileRead("/index.html")) {
+      server.send(404, "text/plain", "index.html não encontrado");
+    }
+  });
 
-    File file = LittleFS.open("/index.html", "r");
-    server.streamFile(file, "text/html");
-    file.close();
-  });
-  server.on("/tf.min.js", HTTP_GET, []() {
-    // Manda o celular fazer um cache eterno desse arquivo pesado
-    server.sendHeader("Cache-Control", "max-age=31536000");
-    File file = LittleFS.open("/tf.min.js", "r");
-    server.streamFile(file, "application/javascript");
-    file.close();
-  });
   server.on("/cmd", handleCmd);
 
   server.begin();
@@ -498,12 +570,6 @@ esp_task_wdt_config_t twdt_config = {
   webSocket.onEvent(webSocketEvent);
 
   xTaskCreatePinnedToCore(webTask, "webTask", 10000, NULL, 1, NULL, 0);
-  server.on("/jspdf.js", HTTP_GET, []() {
-    server.sendHeader("Cache-Control", "max-age=31536000");  // Cache de 1 ano (offline total)
-    File file = LittleFS.open("/jspdf.js", "r");
-    server.streamFile(file, "application/javascript");
-    file.close();
-  });
 
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
@@ -512,53 +578,25 @@ esp_task_wdt_config_t twdt_config = {
     server.send(302, "text/html", "<html><head><meta http-equiv=\"refresh\" content=\"0;url=http://192.168.4.1/\"></head><body>Redirecionando para o IPS Metrix...</body></html>");
   };
 
-  
   server.on("/generate_204", redirectCaptive);
   server.on("/gen_204", redirectCaptive);
   server.on("/hotspot-detect.html", redirectCaptive);
   
-  server.onNotFound(redirectCaptive);
-
-  server.on("/", []() {
-    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    server.sendHeader("Pragma", "no-cache");
-    server.sendHeader("Expires", "-1");
-   
-    handleRoot(); 
+  server.onNotFound([]() {
+    if (!handleFileRead(server.uri())) {
+      server.sendHeader("Location", "http://192.168.4.1/", true);
+      server.send(302, "text/html", "<html><head><meta http-equiv=\"refresh\" content=\"0;url=http://192.168.4.1/\"></head><body>Redirecionando para o IPS Metrix...</body></html>");
+    }
   });
-
-  server.begin();
 
   Serial.println("IPS Metrix PRONTO (Dual-Core + WebSocket Seguro Ativados)");
 }
 
 // ================= NÚCLEO 1 (Cronômetro e Lógica) =================
 void loop() {
-  dnsServer.processNextRequest();
   processQueue();
   esp_task_wdt_reset();
 
-  static unsigned long lastBatSend = 0;
-
-  if (millis() - lastBatSend > 1000) { 
-    
-    float voltagemBateria = lerTensaoBateria(); 
-    
-    // Imprime no Plotter
-
-
-    // Alerta de 3.2V
-    if (voltagemBateria <= 3.20) {
-        Serial.println("ALERTA_BATERIA: Critica! Coloque para carregar!");
-    }
-
-    // Envia pro celular via WebSocket
-    char batBuf[64];
-    sprintf(batBuf, "{\"type\":\"master_status\",\"bat_v\":%.2f}", voltagemBateria);
-    sendWS(String(batBuf));
-    
-    lastBatSend = millis();
-  }
   
   vTaskDelay(pdMS_TO_TICKS(30));
 }

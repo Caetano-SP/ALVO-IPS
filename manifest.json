@@ -1,0 +1,30 @@
+{
+  "id": "/",
+  "name": "IPS Metrix PRO",
+  "short_name": "IPS Metrix",
+  "description": "Controle tático IPSC em tempo real — Hit Factor, splits e telemetria ao vivo",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#4CAF50",
+  "orientation": "portrait-primary",
+  "lang": "pt-BR",
+  "categories": [
+    "sports",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
